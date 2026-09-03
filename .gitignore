@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.DS_Store
+.ipynb_checkpoints/
+*.egg-info/
+build/
+dist/
+
+# Downloaded science data is large and reproducible, so it is not tracked.
+data/raw/
+data/cache/
+!data/raw/.gitkeep
+
+# Model weights produced by training are rebuilt by scripts/run_pipeline.py.
+artifacts/*.npz
