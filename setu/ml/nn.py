@@ -88,6 +88,17 @@ class CausalConv1d(Layer):
 
 
 class ReLU(Layer):
+    """Rectifier.
+
+    The mask is kept only on a training pass. An evaluation pass must leave the
+    cache alone, because the monotonicity constraint runs an evaluation forward in
+    between a training forward and its backward, and overwriting the mask there
+    would silently corrupt the gradient.
+    """
+
+    def __init__(self):
+        self._mask = None
+
     def forward(self, x, training=True):
         if training:
             self._mask = x > 0

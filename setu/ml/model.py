@@ -80,6 +80,12 @@ class GICNet:
         self.head1 = Dense(channels, 64, rng)
         self.head_act = ReLU()
         self.head2 = Dense(64, len(self.horizons) * len(self.quantiles), rng)
+        # The last layer starts small so the network begins with a nearly flat
+        # prediction near the middle of the target range. Starting from a large
+        # random output makes the first epochs fight their own initialisation
+        # instead of learning anything.
+        self.head2.w *= 0.05
+        self.head2.b[...] = -2.0
 
         self.layers = ([self.stem, self.stem_norm, self.stem_act] + self.blocks
                        + [self.head_drop, self.head1, self.head_act, self.head2])
