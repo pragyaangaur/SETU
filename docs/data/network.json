@@ -1,0 +1,553 @@
+{
+ "network": "North East Region model: 26 substations, 28 corridors, 2,329 km of route",
+ "contrast": {
+  "shillong_plateau": 1.0,
+  "brahmaputra_valley": 1.1195178390510634,
+  "bengal_tripura_basin": 7.336172695415068,
+  "arunachal_himalaya": 1.1432404045316342
+ },
+ "benchmark_1v_per_km": {
+  "north": {
+   "BNGN": 25.2430488844287,
+   "SLKT": 3.409867530278449,
+   "AGIA": -23.574820455240506,
+   "BYRN": -10.315908790562652,
+   "AZRA": -8.696289111116755,
+   "SHLG": -23.475453144103692,
+   "KPLI": -7.178638974203043,
+   "MISA": 24.596042633527272,
+   "SMGR": -17.326797782450928,
+   "BWNC": 11.451084387832747,
+   "BLPR": 11.439903706069366,
+   "TZPR": -16.130088467101075,
+   "KMNG": 33.06134641228452,
+   "RNGN": 24.109425533884462,
+   "ITNG": -2.992763048557809,
+   "MRNI": 46.00715220439084,
+   "DMPR": 13.12712924393085,
+   "IMPL": -12.98815608964015,
+   "LKTK": -17.920829547026116,
+   "SLCR": 41.4663228981931,
+   "AZWL": -29.816967408655398,
+   "KMGT": -8.520469365614808,
+   "SRJM": -25.384636204589714,
+   "PLTN": -39.461289317694344,
+   "ALPD": -6.178208519970103,
+   "BNGR": 16.0499927917068
+  },
+  "east": {
+   "BNGN": 4.583792301184096,
+   "SLKT": 13.510072378654563,
+   "AGIA": -39.35020037633365,
+   "BYRN": 3.9596858665377446,
+   "AZRA": -32.08968496749186,
+   "SHLG": 2.404357793471034,
+   "KPLI": 21.251808840536068,
+   "MISA": 37.87046623153371,
+   "SMGR": -0.07992967128862646,
+   "BWNC": 105.47896298147093,
+   "BLPR": -8.320475197089287,
+   "TZPR": -1.5717319540288583,
+   "KMNG": -18.961359319811457,
+   "RNGN": 29.815735009875084,
+   "ITNG": -0.4023308880514176,
+   "MRNI": 108.671989236317,
+   "DMPR": 2.4414747707466256,
+   "IMPL": 51.52966303415241,
+   "LKTK": 10.193602027123422,
+   "SLCR": 27.459270586968668,
+   "AZWL": 2.1299036001176392,
+   "KMGT": -15.4456624906256,
+   "SRJM": -58.31322634021104,
+   "PLTN": -23.069372782301826,
+   "ALPD": -95.81762776951082,
+   "BNGR": -127.87918290194462
+  }
+ },
+ "substations": [
+  {
+   "code": "BNGN",
+   "name": "Bongaigaon",
+   "lat": 26.48,
+   "lon": 90.55,
+   "kv": 400,
+   "state": "Assam",
+   "earth_model": "brahmaputra_valley",
+   "transformer_type": "autotransformer",
+   "criticality": 0.85
+  },
+  {
+   "code": "SLKT",
+   "name": "Salakati",
+   "lat": 26.42,
+   "lon": 90.62,
+   "kv": 400,
+   "state": "Assam",
+   "earth_model": "brahmaputra_valley",
+   "transformer_type": "three_phase_three_limb",
+   "criticality": 0.55
+  },
+  {
+   "code": "AGIA",
+   "name": "Agia",
+   "lat": 26.15,
+   "lon": 90.7,
+   "kv": 400,
+   "state": "Assam",
+   "earth_model": "brahmaputra_valley",
+   "transformer_type": "autotransformer",
+   "criticality": 0.5
+  },
+  {
+   "code": "BYRN",
+   "name": "Byrnihat",
+   "lat": 25.9,
+   "lon": 91.87,
+   "kv": 400,
+   "state": "Meghalaya",
+   "earth_model": "shillong_plateau",
+   "transformer_type": "single_phase_bank",
+   "criticality": 0.9
+  },
+  {
+   "code": "AZRA",
+   "name": "Azara",
+   "lat": 26.1,
+   "lon": 91.58,
+   "kv": 400,
+   "state": "Assam",
+   "earth_model": "brahmaputra_valley",
+   "transformer_type": "autotransformer",
+   "criticality": 0.95
+  },
+  {
+   "code": "SHLG",
+   "name": "Shillong",
+   "lat": 25.57,
+   "lon": 91.88,
+   "kv": 220,
+   "state": "Meghalaya",
+   "earth_model": "shillong_plateau",
+   "transformer_type": "three_phase_three_limb",
+   "criticality": 0.45
+  },
+  {
+   "code": "KPLI",
+   "name": "Kopili",
+   "lat": 25.65,
+   "lon": 92.8,
+   "kv": 220,
+   "state": "Assam",
+   "earth_model": "shillong_plateau",
+   "transformer_type": "three_phase_five_limb",
+   "criticality": 0.4
+  },
+  {
+   "code": "MISA",
+   "name": "Misa",
+   "lat": 26.42,
+   "lon": 92.83,
+   "kv": 400,
+   "state": "Assam",
+   "earth_model": "brahmaputra_valley",
+   "transformer_type": "autotransformer",
+   "criticality": 0.8
+  },
+  {
+   "code": "SMGR",
+   "name": "Samaguri",
+   "lat": 26.35,
+   "lon": 92.92,
+   "kv": 400,
+   "state": "Assam",
+   "earth_model": "brahmaputra_valley",
+   "transformer_type": "three_phase_three_limb",
+   "criticality": 0.5
+  },
+  {
+   "code": "BWNC",
+   "name": "Biswanath Chariali",
+   "lat": 26.72,
+   "lon": 93.15,
+   "kv": 400,
+   "state": "Assam",
+   "earth_model": "brahmaputra_valley",
+   "transformer_type": "hvdc_converter",
+   "criticality": 1.0
+  },
+  {
+   "code": "BLPR",
+   "name": "Balipara",
+   "lat": 26.83,
+   "lon": 92.78,
+   "kv": 400,
+   "state": "Assam",
+   "earth_model": "brahmaputra_valley",
+   "transformer_type": "autotransformer",
+   "criticality": 0.6
+  },
+  {
+   "code": "TZPR",
+   "name": "Tezpur",
+   "lat": 26.63,
+   "lon": 92.8,
+   "kv": 220,
+   "state": "Assam",
+   "earth_model": "brahmaputra_valley",
+   "transformer_type": "three_phase_three_limb",
+   "criticality": 0.35
+  },
+  {
+   "code": "KMNG",
+   "name": "Kameng",
+   "lat": 27.2,
+   "lon": 92.55,
+   "kv": 400,
+   "state": "Arunachal Pradesh",
+   "earth_model": "arunachal_himalaya",
+   "transformer_type": "three_phase_five_limb",
+   "criticality": 0.65
+  },
+  {
+   "code": "RNGN",
+   "name": "Ranganadi",
+   "lat": 27.35,
+   "lon": 93.9,
+   "kv": 220,
+   "state": "Arunachal Pradesh",
+   "earth_model": "arunachal_himalaya",
+   "transformer_type": "three_phase_five_limb",
+   "criticality": 0.5
+  },
+  {
+   "code": "ITNG",
+   "name": "Itanagar",
+   "lat": 27.1,
+   "lon": 93.62,
+   "kv": 220,
+   "state": "Arunachal Pradesh",
+   "earth_model": "arunachal_himalaya",
+   "transformer_type": "three_phase_three_limb",
+   "criticality": 0.35
+  },
+  {
+   "code": "MRNI",
+   "name": "Mariani",
+   "lat": 26.65,
+   "lon": 94.3,
+   "kv": 400,
+   "state": "Assam",
+   "earth_model": "brahmaputra_valley",
+   "transformer_type": "autotransformer",
+   "criticality": 0.55
+  },
+  {
+   "code": "DMPR",
+   "name": "Dimapur",
+   "lat": 25.9,
+   "lon": 93.72,
+   "kv": 220,
+   "state": "Nagaland",
+   "earth_model": "brahmaputra_valley",
+   "transformer_type": "three_phase_three_limb",
+   "criticality": 0.45
+  },
+  {
+   "code": "IMPL",
+   "name": "Imphal",
+   "lat": 24.8,
+   "lon": 93.94,
+   "kv": 400,
+   "state": "Manipur",
+   "earth_model": "bengal_tripura_basin",
+   "transformer_type": "autotransformer",
+   "criticality": 0.6
+  },
+  {
+   "code": "LKTK",
+   "name": "Loktak",
+   "lat": 24.5,
+   "lon": 93.8,
+   "kv": 132,
+   "state": "Manipur",
+   "earth_model": "bengal_tripura_basin",
+   "transformer_type": "three_phase_three_limb",
+   "criticality": 0.3
+  },
+  {
+   "code": "SLCR",
+   "name": "Silchar",
+   "lat": 24.82,
+   "lon": 92.8,
+   "kv": 400,
+   "state": "Assam",
+   "earth_model": "bengal_tripura_basin",
+   "transformer_type": "single_phase_bank",
+   "criticality": 0.7
+  },
+  {
+   "code": "AZWL",
+   "name": "Aizawl",
+   "lat": 23.73,
+   "lon": 92.72,
+   "kv": 220,
+   "state": "Mizoram",
+   "earth_model": "bengal_tripura_basin",
+   "transformer_type": "three_phase_three_limb",
+   "criticality": 0.35
+  },
+  {
+   "code": "KMGT",
+   "name": "Kumarghat",
+   "lat": 24.2,
+   "lon": 92.02,
+   "kv": 400,
+   "state": "Tripura",
+   "earth_model": "bengal_tripura_basin",
+   "transformer_type": "autotransformer",
+   "criticality": 0.45
+  },
+  {
+   "code": "SRJM",
+   "name": "Surajmaninagar",
+   "lat": 23.75,
+   "lon": 91.28,
+   "kv": 400,
+   "state": "Tripura",
+   "earth_model": "bengal_tripura_basin",
+   "transformer_type": "autotransformer",
+   "criticality": 0.6
+  },
+  {
+   "code": "PLTN",
+   "name": "Palatana",
+   "lat": 23.55,
+   "lon": 91.4,
+   "kv": 400,
+   "state": "Tripura",
+   "earth_model": "bengal_tripura_basin",
+   "transformer_type": "three_phase_five_limb",
+   "criticality": 0.65
+  },
+  {
+   "code": "ALPD",
+   "name": "Alipurduar",
+   "lat": 26.48,
+   "lon": 89.53,
+   "kv": 400,
+   "state": "West Bengal",
+   "earth_model": "brahmaputra_valley",
+   "transformer_type": "hvdc_converter",
+   "criticality": 0.75
+  },
+  {
+   "code": "BNGR",
+   "name": "Binaguri",
+   "lat": 26.62,
+   "lon": 88.72,
+   "kv": 400,
+   "state": "West Bengal",
+   "earth_model": "brahmaputra_valley",
+   "transformer_type": "autotransformer",
+   "criticality": 0.9
+  }
+ ],
+ "lines": [
+  {
+   "from": "BNGR",
+   "to": "ALPD",
+   "kv": 400,
+   "length_km": 82.1,
+   "note": "Siliguri corridor, the only link to the Eastern Region"
+  },
+  {
+   "from": "ALPD",
+   "to": "BNGN",
+   "kv": 400,
+   "length_km": 101.5,
+   "note": "corridor continuation into Assam"
+  },
+  {
+   "from": "ALPD",
+   "to": "BWNC",
+   "kv": 400,
+   "length_km": 360.9,
+   "note": "high voltage direct current route, earth return path"
+  },
+  {
+   "from": "BNGN",
+   "to": "SLKT",
+   "kv": 400,
+   "length_km": 9.6,
+   "note": ""
+  },
+  {
+   "from": "BNGN",
+   "to": "AGIA",
+   "kv": 400,
+   "length_km": 39.6,
+   "note": ""
+  },
+  {
+   "from": "AGIA",
+   "to": "AZRA",
+   "kv": 400,
+   "length_km": 88.0,
+   "note": ""
+  },
+  {
+   "from": "AZRA",
+   "to": "BYRN",
+   "kv": 400,
+   "length_km": 36.5,
+   "note": ""
+  },
+  {
+   "from": "BYRN",
+   "to": "SHLG",
+   "kv": 220,
+   "length_km": 36.7,
+   "note": "climbs onto the resistive plateau"
+  },
+  {
+   "from": "BYRN",
+   "to": "KPLI",
+   "kv": 220,
+   "length_km": 97.2,
+   "note": ""
+  },
+  {
+   "from": "AZRA",
+   "to": "MISA",
+   "kv": 400,
+   "length_km": 129.6,
+   "note": ""
+  },
+  {
+   "from": "MISA",
+   "to": "SMGR",
+   "kv": 400,
+   "length_km": 11.9,
+   "note": ""
+  },
+  {
+   "from": "MISA",
+   "to": "KPLI",
+   "kv": 220,
+   "length_km": 85.7,
+   "note": ""
+  },
+  {
+   "from": "SMGR",
+   "to": "BWNC",
+   "kv": 400,
+   "length_km": 47.1,
+   "note": ""
+  },
+  {
+   "from": "BWNC",
+   "to": "BLPR",
+   "kv": 400,
+   "length_km": 38.7,
+   "note": ""
+  },
+  {
+   "from": "BLPR",
+   "to": "KMNG",
+   "kv": 400,
+   "length_km": 47.0,
+   "note": ""
+  },
+  {
+   "from": "BLPR",
+   "to": "TZPR",
+   "kv": 220,
+   "length_km": 22.3,
+   "note": ""
+  },
+  {
+   "from": "BWNC",
+   "to": "RNGN",
+   "kv": 220,
+   "length_km": 102.1,
+   "note": ""
+  },
+  {
+   "from": "RNGN",
+   "to": "ITNG",
+   "kv": 220,
+   "length_km": 39.2,
+   "note": ""
+  },
+  {
+   "from": "SMGR",
+   "to": "MRNI",
+   "kv": 400,
+   "length_km": 141.3,
+   "note": ""
+  },
+  {
+   "from": "MRNI",
+   "to": "DMPR",
+   "kv": 220,
+   "length_km": 101.5,
+   "note": ""
+  },
+  {
+   "from": "DMPR",
+   "to": "IMPL",
+   "kv": 400,
+   "length_km": 124.3,
+   "note": ""
+  },
+  {
+   "from": "IMPL",
+   "to": "LKTK",
+   "kv": 132,
+   "length_km": 36.2,
+   "note": ""
+  },
+  {
+   "from": "IMPL",
+   "to": "SLCR",
+   "kv": 400,
+   "length_km": 115.1,
+   "note": ""
+  },
+  {
+   "from": "KPLI",
+   "to": "SLCR",
+   "kv": 220,
+   "length_km": 92.3,
+   "note": "long radial link across the Barail range"
+  },
+  {
+   "from": "SLCR",
+   "to": "AZWL",
+   "kv": 220,
+   "length_km": 121.5,
+   "note": ""
+  },
+  {
+   "from": "SLCR",
+   "to": "KMGT",
+   "kv": 400,
+   "length_km": 104.8,
+   "note": ""
+  },
+  {
+   "from": "KMGT",
+   "to": "SRJM",
+   "kv": 400,
+   "length_km": 90.3,
+   "note": ""
+  },
+  {
+   "from": "SRJM",
+   "to": "PLTN",
+   "kv": 400,
+   "length_km": 25.4,
+   "note": ""
+  }
+ ]
+}

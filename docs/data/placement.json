@@ -1,0 +1,207 @@
+{
+ "greedy": {
+  "baseline": 487.58,
+  "metric": "reactive",
+  "steps": [
+   {
+    "site": "BWNC",
+    "name": "Biswanath Chariali",
+    "score": 395.97,
+    "reduction_percent": 18.8,
+    "devices": 1
+   },
+   {
+    "site": "ALPD",
+    "name": "Alipurduar",
+    "score": 343.16,
+    "reduction_percent": 29.6,
+    "devices": 2
+   },
+   {
+    "site": "BNGR",
+    "name": "Binaguri",
+    "score": 287.32,
+    "reduction_percent": 41.1,
+    "devices": 3
+   },
+   {
+    "site": "MRNI",
+    "name": "Mariani",
+    "score": 251.5,
+    "reduction_percent": 48.4,
+    "devices": 4
+   },
+   {
+    "site": "BNGN",
+    "name": "Bongaigaon",
+    "score": 219.35,
+    "reduction_percent": 55.0,
+    "devices": 5
+   },
+   {
+    "site": "AGIA",
+    "name": "Agia",
+    "score": 177.76,
+    "reduction_percent": 63.5,
+    "devices": 6
+   },
+   {
+    "site": "AZRA",
+    "name": "Azara",
+    "score": 136.57,
+    "reduction_percent": 72.0,
+    "devices": 7
+   },
+   {
+    "site": "BYRN",
+    "name": "Byrnihat",
+    "score": 120.43,
+    "reduction_percent": 75.3,
+    "devices": 8
+   }
+  ],
+  "chosen": [
+   "BWNC",
+   "ALPD",
+   "BNGR",
+   "MRNI",
+   "BNGN",
+   "AGIA",
+   "AZRA",
+   "BYRN"
+  ]
+ },
+ "single_site_ranking": [
+  {
+   "site": "BWNC",
+   "name": "Biswanath Chariali",
+   "reduction_percent": 18.79
+  },
+  {
+   "site": "ALPD",
+   "name": "Alipurduar",
+   "reduction_percent": 11.98
+  },
+  {
+   "site": "MRNI",
+   "name": "Mariani",
+   "reduction_percent": 6.34
+  },
+  {
+   "site": "AZRA",
+   "name": "Azara",
+   "reduction_percent": 4.83
+  },
+  {
+   "site": "KMNG",
+   "name": "Kameng",
+   "reduction_percent": 3.03
+  },
+  {
+   "site": "MISA",
+   "name": "Misa",
+   "reduction_percent": 2.93
+  },
+  {
+   "site": "AGIA",
+   "name": "Agia",
+   "reduction_percent": 2.49
+  },
+  {
+   "site": "BLPR",
+   "name": "Balipara",
+   "reduction_percent": 2.49
+  },
+  {
+   "site": "SLKT",
+   "name": "Salakati",
+   "reduction_percent": 1.73
+  },
+  {
+   "site": "BYRN",
+   "name": "Byrnihat",
+   "reduction_percent": 1.58
+  },
+  {
+   "site": "IMPL",
+   "name": "Imphal",
+   "reduction_percent": 1.33
+  },
+  {
+   "site": "SLCR",
+   "name": "Silchar",
+   "reduction_percent": 1.28
+  },
+  {
+   "site": "KPLI",
+   "name": "Kopili",
+   "reduction_percent": 0.8
+  },
+  {
+   "site": "SRJM",
+   "name": "Surajmaninagar",
+   "reduction_percent": 0.74
+  },
+  {
+   "site": "RNGN",
+   "name": "Ranganadi",
+   "reduction_percent": 0.59
+  },
+  {
+   "site": "BNGN",
+   "name": "Bongaigaon",
+   "reduction_percent": 0.53
+  },
+  {
+   "site": "DMPR",
+   "name": "Dimapur",
+   "reduction_percent": 0.44
+  },
+  {
+   "site": "TZPR",
+   "name": "Tezpur",
+   "reduction_percent": 0.25
+  },
+  {
+   "site": "SHLG",
+   "name": "Shillong",
+   "reduction_percent": 0.18
+  },
+  {
+   "site": "KMGT",
+   "name": "Kumarghat",
+   "reduction_percent": 0.09
+  },
+  {
+   "site": "PLTN",
+   "name": "Palatana",
+   "reduction_percent": 0.01
+  },
+  {
+   "site": "ITNG",
+   "name": "Itanagar",
+   "reduction_percent": -0.03
+  },
+  {
+   "site": "AZWL",
+   "name": "Aizawl",
+   "reduction_percent": -0.21
+  },
+  {
+   "site": "SMGR",
+   "name": "Samaguri",
+   "reduction_percent": -0.25
+  },
+  {
+   "site": "LKTK",
+   "name": "Loktak",
+   "reduction_percent": -0.27
+  },
+  {
+   "site": "BNGR",
+   "name": "Binaguri",
+   "reduction_percent": -1.84
+  }
+ ],
+ "scenario_note": "hypothetical extreme event, not an observed storm"
+}
