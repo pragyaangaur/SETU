@@ -14,5 +14,5 @@ data/raw/
 data/cache/
 !data/raw/.gitkeep
 
-# Model weights produced by training are rebuilt by scripts/run_pipeline.py.
-artifacts/*.npz
+# The trained weights are small and are kept in the repository, so that anyone can
+# replay a storm without spending an hour retraining first.
