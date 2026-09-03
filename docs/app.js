@@ -11,8 +11,10 @@
   var NETWORK = DATA.network || { substations: [], lines: [] };
   var PLACEMENT = DATA.placement || null;
 
+  // Most recent storm first, because that is the one a reader wants to see.
   var replays = Object.keys(DATA)
     .filter(function (k) { return k.indexOf("replay_") === 0; })
+    .sort().reverse()
     .map(function (k) { return { key: k, data: DATA[k] }; });
 
   var state = { replay: replays[0] ? replays[0].data : null, index: 0 };
@@ -290,12 +292,12 @@
     var scrub = el("scrub");
     var n = state.replay ? state.replay.steps.length - 1 : 0;
     scrub.max = String(Math.max(0, n));
-    // Open on the most exposed moment of the storm, because that is what a
-    // reader wants to see first.
+    // Open on the moment the ground was roughest, because that is what a reader
+    // wants to see first and it is also where the forecast is worth judging.
     if (state.replay) {
       var worst = 0, best = -1;
       state.replay.steps.forEach(function (s, i) {
-        if (s.peak_per_phase_amp > best) { best = s.peak_per_phase_amp; worst = i; }
+        if (s.observed_dbdt > best) { best = s.observed_dbdt; worst = i; }
       });
       state.index = worst;
     }
