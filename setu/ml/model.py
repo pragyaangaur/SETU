@@ -236,28 +236,48 @@ class GICNet:
         return model
 
 
-def monotonicity_penalty(model, x, feature_index, delta=0.25):
+def monotonicity_penalty(model, x, feature_index, delta=0.25, weight=1.0):
     """Penalise a forecast that falls when the energy input rises.
 
-    The constraint is applied by finite difference. The chosen input channels are
-    raised by a fixed amount in standardised units, the network is run again, and
-    any drop in the prediction is charged. Only the perturbed pass carries a
-    gradient, which is what makes the penalty cheap enough to apply on every batch.
+    The constraint is applied by finite difference across a pair of perturbations.
+    The chosen input channels are pushed up by a fixed amount and down by the same
+    amount, and any case where the lower input predicts a rougher ground than the
+    higher one is charged.
+
+    Perturbing in both directions matters. An earlier version compared the
+    perturbed prediction against the unperturbed one and left the unperturbed one
+    out of the gradient. That version could satisfy the constraint by raising the
+    whole output, which it then did without limit, because raising everything also
+    raised the reference it was being compared against. Charging both sides means a
+    uniform shift cancels exactly, so the only way to reduce the penalty is to
+    change the slope, which is what the constraint is actually about.
 
     Args:
         model: The network.
         x: Standardised inputs of shape (batch, features, window).
         feature_index: Indices of the channels the constraint applies to.
-        delta: Size of the upward perturbation, in standardised units.
+        delta: Size of the perturbation in each direction, in standardised units.
+        weight: Multiplier applied to the gradient before it is accumulated.
 
     Returns:
-        A pair of the penalty value and the gradient with respect to the
-        perturbed output.
+        The penalty value. The gradient is accumulated into the model directly,
+        because the two sides of the difference need a backward pass each and the
+        caches for them cannot both be held at once.
     """
-    base = model.forward(x, training=False)
-    lifted = x.copy()
-    lifted[:, feature_index, :] += delta
-    raised = model.forward(lifted, training=True)
-    violation = np.maximum(base - raised, 0.0)
-    grad = np.where(base - raised > 0, -1.0, 0.0) / raised.size
-    return float((violation ** 2).mean()), 2.0 * violation * grad
+    lowered = x.copy()
+    lowered[:, feature_index, :] -= delta
+    raised = x.copy()
+    raised[:, feature_index, :] += delta
+
+    y_low = model.forward(lowered, training=False)
+    y_high = model.forward(raised, training=True)
+    violation = np.maximum(y_low - y_high, 0.0)
+    scale = 2.0 * weight / y_high.size
+
+    # Push the prediction at the stronger driver upward.
+    model.backward(-scale * violation)
+    # Push the prediction at the weaker driver downward by the same amount.
+    model.forward(lowered, training=True)
+    model.backward(scale * violation)
+
+    return float((violation ** 2).mean())

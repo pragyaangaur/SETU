@@ -87,9 +87,8 @@ def train(window=96, channels=32, epochs=24, batch_size=64, lr=2.0e-3,
             model.backward(grad)
 
             if physics_weight > 0:
-                penalty, pgrad = monotonicity_penalty(model, xb, constrained)
-                model.backward(physics_weight * pgrad)
-                running_phys += penalty
+                running_phys += monotonicity_penalty(model, xb, constrained,
+                                                     weight=physics_weight)
             optimiser.step(model.gradients())
             running += loss
 
