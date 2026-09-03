@@ -60,14 +60,40 @@ def cmd_replay(args):
     result["lead_time"] = {
         str(t): lead_time_summary(result, t) for t in (0.1, 0.3)
     }
+    result["planning_study"] = extreme_planning_study()
     out = DOCS_DATA_DIR / f"replay_{args.event}.json"
     out.write_text(json.dumps(result, indent=1, default=float))
     peak = max(s["observed_dbdt"] for s in result["steps"])
     print(f"replayed {result['event']['name']} at {args.observatory}")
     print(f"  {len(result['steps'])} decision points, peak observed {peak:.3f} nT/s")
     for level, summary in result["lead_time"].items():
-        print(f"  lead time at {level} nT/s: {summary}")
+        warned = summary.get("warned")
+        if warned is None:
+            print(f"  {level} nT/s: {summary.get('note', 'nothing to report')}")
+        else:
+            print(f"  {level} nT/s: warned before {warned} of {summary['episodes']} "
+                  f"disturbed periods, median warning "
+                  f"{summary['median_lead_minutes']} minutes")
     print(f"  written to {out}")
+
+
+def extreme_planning_study():
+    """Run the decision layer against the hypothetical extreme scenario set.
+
+    Observed Indian storms do not push this network anywhere near its limits, which
+    is the honest finding and is reported as such. A planning study still needs to
+    show what the decision layer does when the storm is large enough to matter, so
+    the extreme set is run once and exported alongside the replay, clearly labelled
+    as hypothetical.
+    """
+    from setu.decision.policy import PolicyOptimiser
+    scenarios = build_scenarios(EXTREME_QUANTILES, QUANTILE_LEVELS,
+                                n_samples=80, seed=7)
+    plan = PolicyOptimiser().optimise(scenarios)
+    out = plan.summary()
+    out["scenario_note"] = ("hypothetical extreme event, well beyond anything in the "
+                            "modern Indian record, used for planning only")
+    return out
 
 
 def cmd_placement(args):

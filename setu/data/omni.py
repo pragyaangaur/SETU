@@ -2,9 +2,21 @@
 
 OMNI is the standard merged solar wind dataset. It takes measurements made by the
 spacecraft at the first Lagrange point, mainly ACE and Wind and DSCOVR, and shifts
-them forward in time to the nose of the bow shock. That shift is exactly the lead
-time a grid operator gets, so OMNI is the right training source for a system whose
-whole purpose is to use that lead time.
+them forward in time to the nose of the bow shock.
+
+That shift has a consequence which matters a great deal for this project, and it is
+stated here rather than left to be discovered. Because OMNI has already moved the
+measurement forward to Earth, a shock front appears in the OMNI record at the same
+moment it strikes the magnetosphere. A model trained on OMNI therefore has no way
+at all to anticipate a storm sudden commencement, and the replay of the May 2024
+event shows exactly that failure. It predicts the sustained main phase and it
+misses the onset.
+
+The fix is to train on the raw first Lagrange point record instead, where the
+travel time from the spacecraft to the Earth is still in front of the data and is
+worth thirty to sixty minutes depending on the solar wind speed. That is the single
+most valuable change to make to this system and it is the first item of future
+work.
 
 Files are plain text, one month per file, hosted by the Space Physics Data
 Facility. The column layout is fixed and documented by the archive, so the reader

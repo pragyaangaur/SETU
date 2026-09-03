@@ -42,7 +42,7 @@ def replay(event_key: str, model: GICNet, scaler: Standardiser,
             control room does not re run a plan every five minutes, and a larger
             stride keeps the replay quick.
         n_scenarios: Scenarios sampled per decision point.
-        plan_threshold: Probability of passing the middle alert level above which
+        plan_threshold: Probability of passing the lowest alert level above which
             the decision layer is run at all. Below it the recommendation is to do
             nothing, which is the right answer almost all of the time.
         horizon_index: Which forecast horizon the plan is built for.
@@ -99,7 +99,7 @@ def replay(event_key: str, model: GICNet, scaler: Standardiser,
                              zip(result.codes, result.per_phase_per_unit)},
             "plan": None,
         }
-        if probability[str(DBDT_THRESHOLDS_NT_PER_S[1])] >= plan_threshold:
+        if probability[str(DBDT_THRESHOLDS_NT_PER_S[0])] >= plan_threshold:
             record["plan"] = optimiser.optimise(scenarios).summary()
         steps.append(record)
 
@@ -125,41 +125,86 @@ def exceedance(quantile_row, threshold):
     return float(1.0 - np.interp(threshold, values, levels))
 
 
-def lead_time_summary(replayed: dict, threshold: float = 0.3,
-                      probability_cut: float = 0.4) -> dict:
-    """How much warning the system would have given, and whether it was right.
+def episodes(exceeded, gap_steps=24):
+    """Group a boolean series into separate disturbed periods.
 
-    The number an operator asks for first is not a skill score. It is how many
-    minutes of warning they get before the ground starts moving, so that is
-    computed here directly from the replay.
+    A storm is not one continuous event. It has a sudden commencement, a main
+    phase, and often several substorm injections hours apart. Treating the whole
+    record as a single episode would score only the first onset and ignore
+    everything after it, which is most of the storm.
+    """
+    indices = np.where(np.asarray(exceeded, dtype=bool))[0]
+    if indices.size == 0:
+        return []
+    groups, start, previous = [], indices[0], indices[0]
+    for i in indices[1:]:
+        if i - previous > gap_steps:
+            groups.append((int(start), int(previous)))
+            start = i
+        previous = i
+    groups.append((int(start), int(previous)))
+    return groups
+
+
+def lead_time_summary(replayed: dict, threshold: float = 0.1,
+                      probability_cut: float = 0.4, gap_steps: int = 24) -> dict:
+    """How much warning the system gave before each disturbed period.
+
+    The first number an operator asks for is not a skill score. It is how many
+    minutes of warning they get before the ground starts moving, so it is computed
+    here directly from the replay.
+
+    Warning is measured per episode rather than once for the whole storm. For each
+    disturbed period the last alarm that was already standing before it began is
+    found, and the warning is the time from that alarm to the start of the period,
+    plus the forecast horizon itself. An episode with no standing alarm is recorded
+    as a miss, and misses are reported alongside the warnings rather than dropped.
     """
     steps = replayed["steps"]
+    if len(steps) < 2:
+        return {"threshold": threshold, "note": "the replay is too short to score"}
+
     observed = np.array([s["observed_dbdt"] for s in steps])
     probability = np.array([s["probability"][str(threshold)] for s in steps])
     horizon = replayed["horizon_minutes"]
+    minutes_per_step = int(round(
+        (np.datetime64(steps[1]["time"]) - np.datetime64(steps[0]["time"]))
+        / np.timedelta64(1, "m")))
 
     alarmed = probability >= probability_cut
-    exceeded = observed >= threshold
-    if not exceeded.any():
-        return {"threshold": threshold, "exceeded": False,
+    found = episodes(observed >= threshold, gap_steps)
+    if not found:
+        return {"threshold": threshold, "episodes": 0,
                 "note": "the ground never passed this level during the event"}
 
-    first_exceed = int(np.argmax(exceeded))
-    first_alarm = int(np.argmax(alarmed)) if alarmed.any() else None
-    if first_alarm is None or first_alarm > first_exceed:
-        return {"threshold": threshold, "exceeded": True, "warned": False,
-                "note": "the system did not raise this level before the ground did"}
+    warnings, misses = [], []
+    for start, end in found:
+        prior = np.where(alarmed[:start])[0]
+        # An alarm counts only if it was still standing when the episode began,
+        # which means no quiet gap longer than one episode gap between the two.
+        if prior.size and start - prior[-1] <= gap_steps:
+            onset = prior[-1]
+            # Walk back to the beginning of that unbroken run of alarms.
+            while onset > 0 and alarmed[onset - 1]:
+                onset -= 1
+            warnings.append({
+                "episode_start": steps[start]["time"],
+                "peak_dbdt": float(observed[start:end + 1].max()),
+                "lead_minutes": int((start - onset) * minutes_per_step + horizon),
+            })
+        else:
+            misses.append({"episode_start": steps[start]["time"],
+                           "peak_dbdt": float(observed[start:end + 1].max())})
 
-    stride_minutes = INPUT_CADENCE_MIN * max(
-        1, (len(steps) > 1) * int(round(
-            (np.datetime64(steps[1]["time"]) - np.datetime64(steps[0]["time"]))
-            / np.timedelta64(1, "m") / INPUT_CADENCE_MIN)))
+    leads = [w["lead_minutes"] for w in warnings]
     return {
         "threshold": threshold,
-        "exceeded": True,
-        "warned": True,
-        "lead_minutes": int((first_exceed - first_alarm) * stride_minutes + horizon),
-        "first_alarm": steps[first_alarm]["time"],
-        "first_exceedance": steps[first_exceed]["time"],
-        "peak_observed_dbdt": float(observed.max()),
+        "probability_cut": probability_cut,
+        "episodes": len(found),
+        "warned": len(warnings),
+        "missed": len(misses),
+        "median_lead_minutes": int(np.median(leads)) if leads else None,
+        "max_lead_minutes": int(max(leads)) if leads else None,
+        "warnings": warnings,
+        "misses": misses,
     }
