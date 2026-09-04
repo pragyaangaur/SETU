@@ -10,6 +10,7 @@
   var DATA = window.SETU_DATA || {};
   var NETWORK = DATA.network || { substations: [], lines: [] };
   var PLACEMENT = DATA.placement || null;
+  var LIVE = DATA.live || null;
 
   // Most recent storm first, because that is the one a reader wants to see.
   var replays = Object.keys(DATA)
@@ -251,6 +252,55 @@
       }).join("") + "</tbody></table>";
   }
 
+  function renderLive() {
+    if (!LIVE) { return; }
+    var c = LIVE.conditions || {};
+    el("liveCard").hidden = false;
+    var rows = [
+      ["Measured at", c.observed_at + " UTC"],
+      ["Reporting spacecraft", (c.sources || []).join(", ") || "unknown"],
+      ["Field magnitude", c.b_total_nt + " nT"],
+      ["Southward field", c.southward_field_nt + " nT"],
+      ["Speed", c.speed_km_s + " km/s"],
+      ["Reaches the Earth in", c.propagation_delay_min + " minutes"]
+    ];
+    var check = LIVE.delay_check || {};
+    el("live").innerHTML =
+      '<table><tbody>' + rows.map(function (r) {
+        return "<tr><td>" + r[0] + "</td><td class='num'>" + r[1] + "</td></tr>";
+      }).join("") + "</tbody></table>" +
+      '<p class="note">Snapshot taken ' + (LIVE.generated_at || "").slice(0, 16) +
+      ". The travel time above is computed from spacecraft distance and measured speed. " +
+      "Checked against the operational feed's own propagated product, the two agree to " +
+      (check.median_difference_min !== undefined ? check.median_difference_min : "?") +
+      " minutes in the median.</p>";
+  }
+
+  function renderLeadTime() {
+    var host = el("leadtime");
+    var r = state.replay;
+    if (!r || !r.lead_time) { host.innerHTML = '<p class="empty">Run the replay command to export this.</p>'; return; }
+
+    var blocks = Object.keys(r.lead_time).map(function (level) {
+      var s = r.lead_time[level];
+      if (s.episodes === undefined || s.episodes === 0) {
+        return '<div class="card" style="background:var(--panel2)"><h2>' + level +
+          " nT per second</h2><p class=\"note\">" +
+          (s.note || "nothing to report") + "</p></div>";
+      }
+      var cls = s.warned === s.episodes ? "p-good" : s.warned ? "p-warn" : "p-bad";
+      var lead = s.median_lead_minutes === null ? "none" : s.median_lead_minutes + " min";
+      return '<div class="card" style="background:var(--panel2)">' +
+        "<h2>" + level + " nT per second</h2>" +
+        '<div class="kpi">' + lead +
+        ' <span class="pill ' + cls + '">' + s.warned + " of " + s.episodes +
+        " warned</span><small>median warning before a disturbed period. " +
+        (s.missed ? s.missed + " period" + (s.missed > 1 ? "s" : "") + " missed." : "None missed.") +
+        "</small></div></div>";
+    });
+    host.innerHTML = '<div class="grid g2">' + blocks.join("") + "</div>";
+  }
+
   /* ---------- wiring ---------- */
 
   function currentStep() {
@@ -262,6 +312,7 @@
     var step = currentStep();
     el("stamp").textContent = step ? step.time.replace("T", " ").slice(0, 16) + " UTC" : "";
     renderKpis(); renderChart(); renderMap(); renderSites(); renderPlan();
+    renderLeadTime();
   }
 
   function init() {
@@ -285,6 +336,7 @@
       renderAll();
     });
     renderPlacement();
+    renderLive();
     renderAll();
   }
 

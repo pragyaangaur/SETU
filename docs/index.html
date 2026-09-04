@@ -51,6 +51,9 @@ input[type=range]{flex:1;min-width:220px;padding:0}
 .note{color:var(--dim);font-size:12px;margin-top:10px}
 .bar{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden}
 .bar>i{display:block;height:100%;border-radius:4px}
+img{max-width:100%;height:auto;border-radius:6px;background:#fff}
+figure{margin:0}
+figcaption{margin-top:8px}
 footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);color:var(--dim);font-size:12px}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--dim);margin-top:8px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
@@ -67,6 +70,11 @@ footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);color:v
   <h1>SETU <span class="sub">solar event to utility</span></h1>
   <p class="tagline">Forecasting geomagnetically induced current in the North East Indian transmission grid, and deciding what to do about it. Every number on this page is produced by the code in this repository, running on real solar wind data from NASA OMNI and real ground magnetometer data from INTERMAGNET.</p>
 </header>
+
+<section class="card" id="liveCard" hidden>
+  <h2>Solar wind right now</h2>
+  <div id="live"></div>
+</section>
 
 <section class="grid g3" id="kpis"></section>
 
@@ -104,6 +112,12 @@ footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);color:v
   </div>
 </section>
 
+<section class="card" style="margin-top:16px">
+  <h2>Warning time</h2>
+  <div id="leadtime"></div>
+  <p class="note">A disturbed period is a run of minutes above the level, separated from the next run by at least two hours. Warning is counted from the last alarm that was already standing when the period began, plus the forecast horizon itself. Periods with no standing alarm are counted as missed and are shown here rather than dropped.</p>
+</section>
+
 <section class="grid g2" style="margin-top:16px">
   <div class="card">
     <h2>Recommended action</h2>
@@ -113,6 +127,31 @@ footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);color:v
     <h2>Where to put blocking devices</h2>
     <div id="placement"></div>
     <p class="note">Sites are chosen against a hypothetical extreme event, not an observed storm. The right hand column is what a ranking that scored each site on its own would have said, which is a different answer.</p>
+  </div>
+</section>
+
+<section class="card" style="margin-top:16px">
+  <h2>How it works, in four steps</h2>
+  <figure style="margin:0">
+    <img src="figures/03_storm_chain.png" alt="Four panels showing the solar wind, the ground magnetic disturbance, its rate of change, and the induced electric field through the May 2024 storm" loading="lazy">
+    <figcaption class="note">Every panel is drawn from measured data. The solar wind is on the clock of the spacecraft that recorded it, so the gap between the first panel and the second is the warning time the system has to work with.</figcaption>
+  </figure>
+</section>
+
+<section class="grid g2" style="margin-top:16px">
+  <div class="card">
+    <h2>Why this region</h2>
+    <figure style="margin:0">
+      <img src="figures/01_ground_response.png" alt="Surface impedance and apparent resistivity of four ground models" loading="lazy">
+      <figcaption class="note">The Shillong Plateau returns about seven times the electric field of the Bengal basin for the same magnetic disturbance.</figcaption>
+    </figure>
+  </div>
+  <div class="card">
+    <h2>Why the direction matters</h2>
+    <figure style="margin:0">
+      <img src="figures/02_direction_and_map.png" alt="Polar plot of network exposure against field direction, next to a map of the regional grid" loading="lazy">
+      <figcaption class="note">The network is far more exposed east to west, and the storm time currents that reach Indian latitudes produce exactly that direction.</figcaption>
+    </figure>
   </div>
 </section>
 
