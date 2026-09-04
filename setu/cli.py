@@ -14,11 +14,13 @@ import logging
 
 import numpy as np
 
-from setu.config import ARTIFACT_DIR, DOCS_DATA_DIR
+from setu.config import ARTIFACT_DIR, DOCS_DATA_DIR, FORECAST_HORIZONS_MIN
 from setu.decision.blockers import greedy_placement, marginal_value
 from setu.decision.scenarios import build_scenarios
+from setu.decision.policy import PolicyOptimiser
 from setu.grid.network import Network
-from setu.ml.features import Standardiser
+from setu.grid.voltage import VoltageModel
+from setu.ml.features import FEATURE_NAMES, Standardiser
 from setu.ml.model import GICNet
 from setu.physics.earth import (BENGAL_TRIPURA_BASIN, BRAHMAPUTRA_VALLEY,
                                 EARTH_MODELS, SHILLONG_PLATEAU, contrast_amplification)
@@ -27,9 +29,12 @@ from setu.pipeline import lead_time_summary, replay
 
 log = logging.getLogger(__name__)
 
-MODEL_PATH = ARTIFACT_DIR / "gicnet.npz"
-SCALER_PATH = ARTIFACT_DIR / "scaler.npz"
 TIME_BASE = "l1"
+
+# The model trained on the spacecraft clock is the one the system runs on. The
+# untagged names are the fallback, so an older run still loads.
+MODEL_CANDIDATES = (ARTIFACT_DIR / f"gicnet_{TIME_BASE}.npz", ARTIFACT_DIR / "gicnet.npz")
+SCALER_CANDIDATES = (ARTIFACT_DIR / f"scaler_{TIME_BASE}.npz", ARTIFACT_DIR / "scaler.npz")
 
 # The extreme scenario set. These quantiles correspond to a ground disturbance well
 # beyond anything in the modern Indian record, at the level historical accounts put
@@ -40,10 +45,28 @@ QUANTILE_LEVELS = [0.10, 0.25, 0.50, 0.75, 0.90, 0.98]
 
 
 def load_model():
-    if not MODEL_PATH.exists():
-        raise SystemExit("no trained model found, run 'python -m setu.cli train' first")
-    data = np.load(SCALER_PATH, allow_pickle=False)
-    return GICNet.load(MODEL_PATH), Standardiser.from_state(data)
+    """Load the trained network and the scaler that goes with it.
+
+    The two have to come from the same run, because the scaler holds the column
+    order and the statistics the network was fitted against. Mixing a model from
+    one run with a scaler from another produces plausible looking nonsense, so the
+    pair is chosen together and the feature count is checked.
+    """
+    for model_path, scaler_path in zip(MODEL_CANDIDATES, SCALER_CANDIDATES):
+        if model_path.exists() and scaler_path.exists():
+            model = GICNet.load(model_path)
+            scaler = Standardiser.from_state(np.load(scaler_path, allow_pickle=False))
+            if model.n_features != len(scaler.feature_names):
+                raise SystemExit(
+                    f"{model_path.name} expects {model.n_features} features and "
+                    f"{scaler_path.name} has {len(scaler.feature_names)}. These are "
+                    "from different runs, so retrain with 'python -m setu.cli train'.")
+            if list(scaler.feature_names) != FEATURE_NAMES:
+                raise SystemExit(
+                    f"{scaler_path.name} was fitted on a different feature set than "
+                    "the code now builds, so retrain with 'python -m setu.cli train'.")
+            return model, scaler
+    raise SystemExit("no trained model found, run 'python -m setu.cli train' first")
 
 
 def cmd_train(args):
@@ -96,7 +119,6 @@ def extreme_planning_study():
     the extreme set is run once and exported alongside the replay, clearly labelled
     as hypothetical.
     """
-    from setu.decision.policy import PolicyOptimiser
     scenarios = build_scenarios(EXTREME_QUANTILES, QUANTILE_LEVELS,
                                 n_samples=80, seed=7)
     plan = PolicyOptimiser().optimise(scenarios)
@@ -123,6 +145,97 @@ def cmd_placement(args):
     print("\nranking if each site were scored on its own:")
     for row in single[:5]:
         print(f"  {row['name']:22s} {row['reduction_percent']:5.2f}%")
+    print(f"\nwritten to {out}")
+
+
+def cmd_live(args):
+    """Run the whole chain on the solar wind as it is right now.
+
+    This is the demonstration that the system is deployment technology rather than
+    a study. It reads the live feed, builds the same features the model was trained
+    on, produces a probabilistic forecast, pushes it through the induction and the
+    network physics, and prints what an operator would be looking at. Nothing in
+    the path is different from the historical replay except where the data came
+    from.
+    """
+    import pandas as pd
+
+    from setu.data.realtime import compare_delay_estimate, current_conditions, fetch_live
+    from setu.ml.dataset import INPUT_CADENCE_MIN
+    from setu.ml.features import FEATURE_NAMES, build_features
+    from setu.pipeline import exceedance
+
+    conditions = current_conditions()
+    print("solar wind now")
+    for key, value in conditions.items():
+        print(f"  {key:24s} {value}")
+
+    check = compare_delay_estimate()
+    print("\ndelay estimate checked against the NOAA propagated product")
+    print(f"  ours {check['our_delay_min']} min, theirs {check['noaa_delay_min']} min, "
+          f"median difference {check['median_difference_min']} min")
+
+    model, scaler = load_model()
+    frame = fetch_live()
+    features = build_features(frame).resample(f"{INPUT_CADENCE_MIN}min").mean()
+    features = features.ffill().bfill()
+    if len(features) < model.window:
+        raise SystemExit(
+            f"the feed returned {len(features)} steps and the model needs "
+            f"{model.window}, try again when more history is available")
+
+    window = features.iloc[-model.window:][FEATURE_NAMES].values
+    scaled = scaler.transform(window).T[None, :, :]
+    quantiles = model.predict_quantiles(scaled)[0]
+
+    print("\nforecast of the ground rate of change at an Indian low latitude station")
+    for h_index, horizon in enumerate(FORECAST_HORIZONS_MIN):
+        row = quantiles[h_index]
+        median = row[len(row) // 2]
+        probabilities = " ".join(
+            f"P(>{t})={exceedance(row, t):.2f}" for t in (0.1, 0.3, 1.0))
+        print(f"  {horizon:3d} min ahead: median {median:.3f} nT/s   {probabilities}")
+
+    network = Network()
+    solver = GICSolver(network)
+    voltage = VoltageModel(network)
+    scenarios = build_scenarios(quantiles[1], list(model.quantiles),
+                                n_samples=args.scenarios, seed=0)
+    worst = max(scenarios, key=lambda s: s.peak_dbdt)
+    result = solver.solve(worst.ex, worst.ey)
+    assessment = voltage.assess(result.reactive_loss_mvar)
+    worst_site = result.codes[int(np.argmax(result.per_phase_per_unit))]
+
+    print("\nnetwork consequence in the worst of "
+          f"{args.scenarios} sampled scenarios")
+    print(f"  peak current            {result.per_phase_per_unit.max():.3f} A per phase at {worst_site}")
+    print(f"  regional reactive load  {result.reactive_loss_mvar.sum():.1f} MVAr")
+    print(f"  worst voltage deviation {assessment['worst_deviation_pu'] * 100:.2f} percent")
+    print(f"  load exposed            {voltage.load_at_risk_mw(result.reactive_loss_mvar):.1f} MW")
+
+    plan = PolicyOptimiser(network).optimise(scenarios).summary()
+    print("\nrecommended action")
+    if plan["actions"]:
+        for action in plan["actions"]:
+            print(f"  {action['label']} ({action['cost_lakh']} lakh, "
+                  f"{action['lead_time_min']} min)")
+    else:
+        print("  none. The forecast risk does not justify the cost of acting.")
+
+    payload = {"generated_at": str(pd.Timestamp.utcnow()),
+               "conditions": conditions, "delay_check": check,
+               "forecast": {str(h): [float(v) for v in quantiles[i]]
+                            for i, h in enumerate(FORECAST_HORIZONS_MIN)},
+               "quantile_levels": list(model.quantiles),
+               "consequence": {
+                   "peak_amp": float(result.per_phase_per_unit.max()),
+                   "worst_site": worst_site,
+                   "reactive_mvar": float(result.reactive_loss_mvar.sum()),
+                   "load_at_risk_mw": voltage.load_at_risk_mw(result.reactive_loss_mvar),
+               },
+               "plan": plan}
+    out = DOCS_DATA_DIR / "live.json"
+    out.write_text(json.dumps(payload, indent=1, default=float))
     print(f"\nwritten to {out}")
 
 
@@ -205,6 +318,10 @@ def build_parser():
     p.add_argument("--metric", default="reactive",
                    choices=("reactive", "peak_current"))
     p.set_defaults(func=cmd_placement)
+
+    p = sub.add_parser("live", help="run the whole chain on the solar wind right now")
+    p.add_argument("--scenarios", type=int, default=60)
+    p.set_defaults(func=cmd_live)
 
     p = sub.add_parser("benchmark", help="print the standard checks and export the network")
     p.set_defaults(func=cmd_benchmark)
