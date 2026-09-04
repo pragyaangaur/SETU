@@ -157,11 +157,21 @@ class QuantileCalibrator:
         return obj
 
 
-def coverage_error(pred_quantiles, target, levels) -> float:
-    """Mean absolute gap between nominal and observed coverage, over all levels.
+def coverage_error(pred_quantiles, target, levels, minimum_level=None) -> float:
+    """Mean absolute gap between nominal and observed coverage.
 
     One number for how honest a set of predictions is. Zero is perfect.
+
+    Args:
+        minimum_level: When given, only levels at or above it are counted. The
+            decision layer never reads the bottom of the distribution, so the
+            error over the upper levels alone is the number that decides whether
+            a change helped the thing the system is for.
     """
     t = np.asarray(target)[:, :, None]
     observed = (t <= np.asarray(pred_quantiles)).mean(axis=(0, 1))
-    return float(np.mean(np.abs(observed - np.asarray(levels))))
+    nominal = np.asarray(levels, dtype=float)
+    if minimum_level is not None:
+        keep = nominal >= minimum_level
+        observed, nominal = observed[keep], nominal[keep]
+    return float(np.mean(np.abs(observed - nominal)))

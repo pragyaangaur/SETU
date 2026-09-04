@@ -32,6 +32,11 @@ log = logging.getLogger(__name__)
 # ground, never a calmer one.
 CONSTRAINED_FEATURES = ("newell", "kan_lee", "bs")
 
+# Quantile levels below this one are never read by the decision layer, which asks
+# for the probability of passing a threshold and therefore lives in the upper tail.
+# Calibration is judged over the levels at or above it.
+OPERATIONAL_LEVEL = 0.75
+
 
 def tail_weights(y_log, tail_weight=3.0, reference_quantile=0.85, reference=None,
                  spread=None):
@@ -209,10 +214,23 @@ def train(window=96, channels=24, epochs=14, batch_size=96, lr=1.5e-3,
     # storms would make every calibration number in the report meaningless, which
     # is the whole reason the report exists.
     calibrator = QuantileCalibrator(QUANTILES)
-    calibrator.fit(predict_in_batches(model, x_va), y_va)
+    va_raw = predict_in_batches(model, x_va)
+    calibrator.fit(va_raw, y_va)
+
+    # Whether to use the map at all is decided on validation, not asserted. The
+    # decision layer only ever reads the upper part of the distribution, so the
+    # comparison is made over those levels alone. A correction that improves the
+    # whole curve while making the operational band worse is not an improvement.
+    band_raw = coverage_error(va_raw, y_va, QUANTILES, minimum_level=OPERATIONAL_LEVEL)
+    band_calibrated = coverage_error(calibrator.calibrate(va_raw), y_va, QUANTILES,
+                                     minimum_level=OPERATIONAL_LEVEL)
+    use_calibration = band_calibrated <= band_raw
     if verbose:
-        log.info("calibration map fitted, q90 now read at raw level %.3f",
-                 calibrator.raw_level(0.90))
+        log.info("validation coverage error above level %.2f: raw %.4f, calibrated "
+                 "%.4f, using %s", OPERATIONAL_LEVEL, band_raw, band_calibrated,
+                 "the calibrated output" if use_calibration else "the raw output")
+    if not use_calibration:
+        calibrator = None
 
     report = evaluate(model, x_va, y_va, x_te, y_te, train_block, test_block,
                       calibrator)
@@ -221,8 +239,13 @@ def train(window=96, channels=24, epochs=14, batch_size=96, lr=1.5e-3,
     report["tail_weight"] = tail_weight
     report["best_epoch"] = int(min(history, key=lambda h: h["validation"])["epoch"])
     report["calibration"] = {
+        "applied": calibrator is not None,
+        "operational_level": OPERATIONAL_LEVEL,
+        "validation_band_error_raw": band_raw,
+        "validation_band_error_calibrated": band_calibrated,
         "requested_levels": list(QUANTILES),
-        "raw_levels": [calibrator.raw_level(q) for q in QUANTILES],
+        "raw_levels": ([calibrator.raw_level(q) for q in QUANTILES]
+                       if calibrator is not None else None),
     }
     report["settings"] = {"channels": channels, "dropout": dropout,
                           "weight_decay": weight_decay, "input_noise": input_noise,
@@ -264,6 +287,10 @@ def evaluate(model, x_va, y_va, x_te, y_te, train_block, test_block,
         "coverage_before_calibration": coverage(te_pred_raw, y_te, QUANTILES),
         "coverage_error": coverage_error(te_pred, y_te, QUANTILES),
         "coverage_error_before_calibration": coverage_error(te_pred_raw, y_te, QUANTILES),
+        "coverage_error_operational_band": coverage_error(
+            te_pred, y_te, QUANTILES, minimum_level=OPERATIONAL_LEVEL),
+        "coverage_error_operational_band_before_calibration": coverage_error(
+            te_pred_raw, y_te, QUANTILES, minimum_level=OPERATIONAL_LEVEL),
         "thresholds": {},
     }
 
@@ -320,7 +347,12 @@ def main(tag=None, **kwargs):
     suffix = f"_{tag}" if tag else ""
     model.save(ARTIFACT_DIR / f"gicnet{suffix}.npz")
     np.savez_compressed(ARTIFACT_DIR / f"scaler{suffix}.npz", **scaler.state())
-    np.savez_compressed(ARTIFACT_DIR / f"calibrator{suffix}.npz", **calibrator.state())
+    calibrator_path = ARTIFACT_DIR / f"calibrator{suffix}.npz"
+    if calibrator is not None:
+        np.savez_compressed(calibrator_path, **calibrator.state())
+    elif calibrator_path.exists():
+        # A stale map from an earlier run would be applied silently, so it goes.
+        calibrator_path.unlink()
     (ARTIFACT_DIR / f"training_report{suffix}.json").write_text(
         json.dumps(report, indent=2, default=float))
     log.info("saved model and report to %s", ARTIFACT_DIR)

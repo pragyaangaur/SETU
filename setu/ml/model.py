@@ -33,8 +33,16 @@ from setu.ml.nn import (Adam, CausalConv1d, ChannelNorm, Dense, Dropout, ReLU,
                         ResidualBlock, pinball_loss)
 
 # The target is stored as the natural logarithm of the rate of change plus a floor.
-# The floor keeps quiet minutes finite and sets the resolution at the bottom end.
-TARGET_FLOOR = 0.01
+# The floor keeps quiet minutes finite and it also sets how much of the quiet end
+# the model can still tell apart.
+#
+# The value matters more than it looks. At an Indian low latitude observatory a
+# quiet minute sits near 0.004 nT per second and the twenty fifth percentile near
+# 0.001. A floor of 0.01 swamps all of that, compressing the whole quiet half of
+# the distribution into about a third of a log unit, and the model then cannot
+# place its lower quantiles at all. A floor of 0.002 leaves that range spanning
+# more than a full log unit, which is enough to fit.
+TARGET_FLOOR = 0.002
 
 
 def to_log_target(dbdt_nt_per_s):
