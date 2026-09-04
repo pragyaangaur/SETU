@@ -23,58 +23,102 @@ The system is five layers, and each one comes from a different discipline.
 
 | Layer | Question it answers | Method |
 | --- | --- | --- |
-| Sensing | What is the Sun doing right now | Solar wind at the L1 point, ground magnetometers |
-| Forecast | How hard will the ground field shake in 30 to 60 minutes | Physics informed dilated convolution network with quantile heads |
+| Sensing | What is the Sun doing right now | Solar wind at the L1 point, live or from the archive, plus ground magnetometers |
+| Forecast | How hard will the ground field shake in 30 to 90 minutes | Physics informed dilated convolution network with calibrated quantile heads |
 | Induction | What electric field appears in the crust | Plane wave response of a layered Earth model |
 | Grid | Which transformers carry how much current | Lehtinen and Pirjola nodal admittance solver, then AC power flow |
 | Decision | What should the operator do about it | Scenario based optimisation under a conditional value at risk constraint |
 
-## Results so far
+## Results
 
-Every number below comes from the code in this repository. The two storms used for testing, the Gannon storm of 10 May 2024 and the Halloween storm of 29 October 2003, were held out completely. They never touched the model, the scaler, or the choice of alarm threshold.
+Full tables are in [RESULTS.md](RESULTS.md), which is written by a script from the saved training reports so the numbers cannot drift away from the runs that produced them. The short version follows.
 
-### Forecast skill on the held out storms
+Three storms are held out completely: the Gannon storm of May 2024, the Halloween storm of October 2003, and the October 2024 storm. They never touched the model, the scaler, the alarm threshold, or the calibration map.
 
-The network has 30,450 parameters, reaches back 315 minutes, and was trained in about 51 minutes on a laptop with no graphics card. It is scored against the 0.1 nT per second alert level at Alibag and Hyderabad, over 3,532 held out samples with a base rate of 14 percent.
+| Horizon | Probability of detection | False alarm ratio | Heidke skill score | Brier skill score |
+| --- | --- | --- | --- | --- |
+| 30 minutes | 0.83 | 0.37 | 0.67 | 0.34 |
+| 45 minutes | 0.78 | 0.38 | 0.63 | 0.28 |
+| 60 minutes | 0.78 | 0.43 | 0.60 | 0.28 |
+| 90 minutes | 0.71 | 0.44 | 0.57 | 0.28 |
 
-| Horizon | Probability of detection | False alarm ratio | Heidke skill score | Peirce score | Brier skill score |
-| --- | --- | --- | --- | --- | --- |
-| 30 minutes | 0.47 | 0.40 | 0.46 | 0.41 | 0.23 |
-| 45 minutes | 0.58 | 0.38 | 0.54 | 0.52 | 0.17 |
-| 60 minutes | 0.50 | 0.41 | 0.47 | 0.44 | 0.13 |
+The model has 19,000 parameters, reaches back 315 minutes, and trains in 24 minutes on a laptop with no graphics card.
 
-The alarm threshold for each horizon was chosen on a validation split made of whole storms and then applied to the test storms unchanged.
+### The clock the solar wind sits on
 
-### The result that matters most, which is a failure
+This is the central design decision and it is worth stating on its own.
 
-The replay of the May 2024 storm shows the model missing the storm sudden commencement. At Alibag the ground went from 0.04 to 0.50 nT per second in a single step at about 16:10 UT on 10 May, and the forecast probability only crossed its alarm level three steps later. The model predicts the sustained main phase and it does not anticipate the onset.
+The OMNI archive publishes the solar wind against the time it reaches the nose of the bow shock rather than the time it was measured. That is the right convention for studying what the magnetosphere did, and it is exactly the wrong one for building a warning system, because under it a shock front appears in the record at the same instant it strikes the Earth. The first version of this project trained on that convention and had no warning time to forecast into at all.
 
-The cause is in the training data and not in the network. OMNI has already shifted the solar wind measurement forward from the spacecraft to the nose of the bow shock, so a shock front appears in the input at the same moment it strikes the Earth. No model trained on OMNI can warn about a sudden commencement. Training on the raw first Lagrange point record instead puts the travel time back in front of the data, which is worth thirty to sixty minutes, and that is the first item of future work.
+The archive records the shift it applied, so it can be undone. Each measurement is moved back to the moment the spacecraft actually saw it, using the travel time implied by spacecraft distance and measured speed, which needs nothing a real time system would not already have. Training the same model both ways on the same storms gives the comparison in [RESULTS.md](RESULTS.md). The spacecraft clock wins at every horizon, and the gain in probabilistic skill is much larger than the gain in detection, which is what you would expect from a model that now has real information about the future rather than a better fit to the present.
 
-Calibration on the test storms is also poor in a way that is worth stating. Only 69 percent of observations fell below the predicted ninetieth percentile, where 90 percent should have. The two test storms are the two largest in the catalogue, so a model trained mostly on weaker events under predicts them. The right fix is to weight the training loss toward the tail rather than to widen the intervals after the fact.
+### The limit on how much warning is possible
+
+There is a hard ceiling here that no model can raise, and it is the most useful thing in this project to be able to explain.
+
+A disturbance can only be forecast at a horizon shorter than its own travel time from the spacecraft to the Earth. At any longer horizon it had not yet reached the spacecraft when the forecast had to be issued. During the fast solar wind of 10 May 2024 that travel time was about thirty minutes, so no forecast at forty five minutes or more could have caught that shock, however good the model was. The delay runs from roughly twenty five minutes to eighty depending on speed, which means the available warning is shortest exactly when the storm is fastest.
+
+The system handles this by forecasting at four horizons that straddle the delay, and by giving the network the propagation delay as an input so it can tell which situation it is in.
+
+### What the replay shows, including where it falls short
+
+Through the body of the May 2024 storm, 87 percent of disturbed decision steps carried a standing alarm. The system did not have an alarm standing before the very first disturbed minute, and the reason is the limit above rather than a defect in the model. The shock reached the spacecraft eleven minutes after the forecast for that minute had to be issued. The alarm probability rises from 0.04 to 0.20 within one decision step of the shock becoming visible, which is as fast as the physics allows.
+
+Both numbers are reported side by side, because the first alone flatters the system and the second alone condemns it.
+
+### Calibration
+
+A stated ninetieth percentile should sit above the observation ninety percent of the time, since the decision layer treats these as real probabilities. The predicted quantiles are corrected by a map fitted on part of the validation set and judged on the rest, following Kuleshov, Fenner, and Ermon (2018). Fitting and judging on the same data made the map look almost perfect and it was not, so the check is now on storms the map has never seen.
+
+Calibration remains the weakest part of the system. It improves the whole distribution and it does not fully transfer from the validation storms to the test storms, which is stated in [RESULTS.md](RESULTS.md) with the numbers rather than smoothed over.
 
 ### What the physics chain says about the North East
 
 - The Shillong Plateau produces an induced electric field 7.3 times larger than the Bengal and Tripura basin does, for the same magnetic disturbance at a five minute period.
-- On the standard one volt per kilometre benchmark, the network is more than three times more exposed to an eastward electric field than to a northward one. The corridor through Siliguri and the 361 km direct current route to Biswanath Chariali both run east to west, and the storm time current systems that reach Indian latitudes produce exactly an eastward field.
+- On the standard one volt per kilometre benchmark the network is more than three times more exposed to an eastward electric field than to a northward one. The Siliguri corridor and the 361 km direct current route to Biswanath Chariali both run east to west, and the storm time current systems that reach Indian latitudes produce exactly an eastward field. The alignment between the driver and the network is a consequence of the geometry rather than an assumption.
 - Earth currents sum to zero across the network to one part in ten to the fourteen, which is the Kirchhoff check on the solver.
 
 ### What the decision layer says
 
-Against a hypothetical extreme event, five actions costing 486 lakh rupees remove 4,551 lakh rupees of tail risk, a return of 9.4 for each rupee. The first action chosen is moving the direct current link off earth return.
+Against a hypothetical extreme event, five actions costing 486 lakh rupees remove 4,551 lakh rupees of tail risk, a return of about nine for each rupee. The first action chosen is moving the direct current link off earth return.
 
-Eight neutral blocking devices cut the regional reactive absorption by 75 percent. The third site the search picks is Binaguri, which does not appear in the top five of a ranking that scores each site on its own. Blocking one substation pushes its current into the neighbours, so the sites cannot be ranked independently, and that gap between the two lists is the reason the search exists.
+Eight neutral blocking devices cut the regional reactive absorption by 75 percent. The third site the search picks is Binaguri, which does not appear anywhere in the top eight of a ranking that scores each site on its own, because it only starts to matter once the two sites above it are blocked.
 
 At the disturbance levels actually observed during the May 2024 storm, the model recommends no action at all. That is the correct answer and it is reported as such.
+
+## Running it live
+
+The archive is what the model learns from and it appears months after the fact. The operational counterpart reads the NOAA real time solar wind feed, which needs no account, and returns the same columns, so the same features and the same trained model run on either one.
+
+```bash
+python -m setu.cli live
+```
+
+This prints the current solar wind, how long it will take to arrive, the probabilistic forecast at all four horizons, the resulting current and voltage consequence across the network, and the recommended action. It also checks this project's propagation delay against the operational feed's own propagated product, which agrees to within about half a minute.
+
+## Figures
+
+Every figure in [docs/figures](docs/figures) is generated by `scripts/make_figures.py` from the real data and the real model, so none of them can drift away from the result it shows.
+
+## Data and collaboration requests
+
+Four gaps can only be closed by people outside this project, and drafted requests for all of them are in [outreach](outreach/README.md). The largest is that the model trains on Alibag and Hyderabad, near ten degrees geomagnetic latitude, and is applied to a region near sixteen. Shillong observatory data would remove that entirely.
 
 ## Install and run
 
 ```bash
 pip install -r requirements.txt
-python -m setu.cli pipeline --event 2024-05-10
+
+python -m setu.cli benchmark                  # physics checks and the network model
+python -m setu.cli live                       # the whole chain on the solar wind right now
+python -m setu.cli replay --event 2024-05-10  # walk a held out storm minute by minute
+python -m setu.cli placement --budget 8       # where to put blocking devices
+python -m setu.cli train --time-base l1 --tag l1
 ```
 
-The pipeline runs offline out of the box using a bundled physics based storm generator, so you can try the whole system without downloading anything. Pass `--fetch` to pull real solar wind data from NASA OMNIWeb instead.
+The trained model is in the repository, so `live` and `replay` work straight after cloning. Data is downloaded on first use and cached under `data/raw`, so the first run of a command that needs history is slow and later ones are not.
+
+The only dependencies are numpy, scipy, pandas, matplotlib, and requests. The neural network and the power flow are written out by hand rather than pulled from a library, so this installs and runs anywhere.
 
 ## Scope
 
@@ -84,7 +128,15 @@ Out of scope are distribution networks below 220 kV, three dimensional magnetote
 
 ## Honest limitations
 
-There is no public dataset of measured transformer neutral currents in India, so the consequence model is validated against physics and against published international measurements rather than against Indian ground truth. The network model is synthetic, because real network parameters are restricted, and it is built to be topologically and electrically representative rather than exact. Real time access to Aditya-L1 solar wind telemetry is not public, so the system is designed against that interface and demonstrated on DSCOVR and OMNI data.
+There is no public dataset of measured transformer neutral currents in India, so the consequence model is validated against physics and against published international measurements rather than against Indian ground truth.
+
+The network model is synthetic, because real network parameters are restricted. It is built to be topologically and electrically representative rather than exact, so a conclusion about which parts of the network are exposed will hold while an absolute current in ampere should be read as an estimate.
+
+The forecast model is trained on Alibag and Hyderabad, which sit near ten degrees geomagnetic latitude, and applied to a region near sixteen. Shillong and Tirunelveli are held by the Indian Institute of Geomagnetism and a request for them is drafted in [outreach](outreach/README.md).
+
+The Halloween storm of 2003 loses most of its record on the spacecraft clock, because the particle instruments at the first Lagrange point were saturated by the event itself and the archive carries no usable speed for long stretches of it. That is a real property of that storm rather than a modelling choice, and it is why the October 2024 storm was added as a third test event.
+
+Real time access to Aditya-L1 solar wind telemetry is not public, so the system is designed against that interface and demonstrated on the operational NOAA feed and the OMNI archive.
 
 ## Licence
 

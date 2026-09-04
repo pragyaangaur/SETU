@@ -215,6 +215,25 @@ def lead_time_summary(replayed: dict, threshold: float = 0.1,
                            "peak_dbdt": float(observed[start:end + 1].max())})
 
     leads = [w["lead_minutes"] for w in warnings]
+
+    # Two numbers are needed to describe this fairly, and reporting only the first
+    # is misleading in one direction while reporting only the second is misleading
+    # in the other.
+    #
+    # The episode count asks whether an alarm was already standing when a disturbed
+    # period began. It is the strictest possible reading and it is what an operator
+    # would want. It also charges the system for shocks that were physically
+    # impossible to forecast, because a forecast issued at a given horizon can only
+    # use solar wind that had already reached the spacecraft by then, and a fast
+    # shock reaches the spacecraft barely half an hour before it reaches the Earth.
+    #
+    # The coverage number asks what fraction of all disturbed minutes carried an
+    # alarm. That is what the skill scores measure, and it says how the system
+    # behaves through the body of a storm rather than at its very first instant.
+    disturbed = observed >= threshold
+    coverage_of_disturbed = (float(alarmed[disturbed].mean()) if disturbed.any()
+                             else None)
+
     return {
         "threshold": threshold,
         "probability_cut": probability_cut,
@@ -223,6 +242,9 @@ def lead_time_summary(replayed: dict, threshold: float = 0.1,
         "missed": len(misses),
         "median_lead_minutes": int(np.median(leads)) if leads else None,
         "max_lead_minutes": int(max(leads)) if leads else None,
+        "disturbed_steps": int(disturbed.sum()),
+        "disturbed_steps_alarmed": coverage_of_disturbed,
+        "alarm_steps": int(alarmed.sum()),
         "warnings": warnings,
         "misses": misses,
     }

@@ -138,9 +138,12 @@ def cmd_replay(args):
         if warned is None:
             print(f"  {level} nT/s: {summary.get('note', 'nothing to report')}")
         else:
-            print(f"  {level} nT/s: warned before {warned} of {summary['episodes']} "
-                  f"disturbed periods, median warning "
-                  f"{summary['median_lead_minutes']} minutes")
+            share = summary.get("disturbed_steps_alarmed")
+            share_text = ("not applicable" if share is None
+                          else f"{share * 100:.0f} percent")
+            print(f"  {level} nT/s: {share_text} of disturbed steps carried an "
+                  f"alarm; warned before {warned} of {summary['episodes']} "
+                  f"disturbed periods began")
     print(f"  written to {out}")
 
 
@@ -259,7 +262,7 @@ def cmd_live(args):
     else:
         print("  none. The forecast risk does not justify the cost of acting.")
 
-    payload = {"generated_at": str(pd.Timestamp.utcnow()),
+    payload = {"generated_at": str(pd.Timestamp.now("UTC")),
                "conditions": conditions, "delay_check": check,
                "forecast": {str(h): [float(v) for v in quantiles[i]]
                             for i, h in enumerate(FORECAST_HORIZONS_MIN)},
