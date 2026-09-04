@@ -108,7 +108,7 @@ python -m setu.cli nowcast
 
 Every quarter of an hour a scheduled job runs that command. It issues a forecast for all four horizons from the solar wind as it stands at that minute and writes it into [docs/data/ledger.json](docs/data/ledger.json) before anything about the outcome is known. About an hour later, once the valid minute has passed, it fetches what the Indian magnetometer actually recorded at that minute and writes the answer beside the forecast. The persistence baseline is recorded in the same row at the same moment and from the same information, so the comparison between the two cannot drift.
 
-Nobody starts it. The job is in [.github/workflows/nowcast.yml](.github/workflows/nowcast.yml) and it commits its own results, so the operator console shows a record that grows on its own.
+Nobody starts it. The job is in [.github/workflows/nowcast.yml](.github/workflows/nowcast.yml) and it commits its own results, so the operator console shows a record that grows on its own. That is also why most of the commits in this repository are made by `setu-nowcast` and say `nowcast:` in front of them. Filter them out with `git log --perl-regexp --author='^(?!setu-nowcast)'` to see the engineering history on its own.
 
 Two properties are what make the record worth anything.
 
