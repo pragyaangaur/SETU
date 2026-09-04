@@ -128,3 +128,23 @@ def test_calibration_round_trips_through_its_saved_state():
     calibrator = QuantileCalibrator(levels).fit(pred, truth)
     restored = QuantileCalibrator.from_state(calibrator.state())
     assert np.allclose(calibrator.calibrate(pred), restored.calibrate(pred))
+
+
+def test_calibration_fixes_a_model_that_sits_too_high():
+    """When too much observed mass falls below the lowest predicted quantile, the
+    corrected low quantiles have to move below it rather than pile up on it."""
+    from setu.ml.calibration import QuantileCalibrator, coverage_error
+
+    levels = (0.10, 0.25, 0.50, 0.75, 0.90, 0.98)
+    normal_quantiles = np.array([-1.2816, -0.6745, 0.0, 0.6745, 1.2816, 2.0537])
+    truth = RNG.normal(0.0, 1.0, (6000, 2))
+    shifted = np.broadcast_to(normal_quantiles + 1.0, (6000, 2, len(levels))).copy()
+
+    before = coverage_error(shifted, truth, levels)
+    calibrator = QuantileCalibrator(levels).fit(shifted[:3000], truth[:3000])
+    fixed = calibrator.calibrate(shifted[3000:])
+
+    assert before > 0.15
+    assert coverage_error(fixed, truth[3000:], levels) < 0.05
+    # Every level must end up distinct, which is what clamping used to destroy.
+    assert np.all(np.diff(fixed, axis=2) > 0)

@@ -94,14 +94,44 @@ class QuantileCalibrator:
         if self.requested is None:
             raise RuntimeError("the calibrator has not been fitted")
         return float(np.clip(np.interp(requested_level, self.requested, self.raw),
-                             1e-4, 1.0 - 1e-4))
+                             1e-6, 1.0 - 1e-6))
+
+    def _read_at(self, row, raw_levels):
+        """Read a model's own quantile curve at arbitrary levels.
+
+        Plain interpolation cannot go outside the levels the model was asked for,
+        and the calibration map routinely needs to. When a model places too much
+        mass low, the corrected tenth percentile has to sit below the lowest
+        quantile the model ever produces, and clamping there instead collapses
+        every low level onto the same value. Both tails are therefore extrapolated
+        rather than clamped, using the width of the outermost band as the scale.
+        """
+        out = np.interp(raw_levels, self.levels, row)
+
+        below = raw_levels < self.levels[0]
+        if below.any():
+            span = max(row[1] - row[0], 1e-9)
+            # How far below the lowest level, measured in units of that level.
+            reach = (self.levels[0] - raw_levels[below]) / max(self.levels[0], 1e-9)
+            out[below] = row[0] - span * reach
+
+        above = raw_levels > self.levels[-1]
+        if above.any():
+            span = max(row[-1] - row[-2], 1e-9)
+            remaining = max(1.0 - self.levels[-1], 1e-9)
+            reach = (raw_levels[above] - self.levels[-1]) / remaining
+            # An exponential tail, which is the usual shape for this quantity and
+            # which keeps the extrapolation finite however close the level gets to
+            # one.
+            out[above] = row[-1] - span * np.log(np.clip(1.0 - reach, 1e-6, 1.0))
+        return out
 
     def calibrate(self, pred_quantiles, requested_levels=None):
         """Rewrite a set of predicted quantiles so the levels mean what they say.
 
         Each requested level is mapped to the raw level that delivers it, and the
-        value at that raw level is read off the model's own quantiles by
-        interpolation. The output keeps the same shape and the same ordering.
+        value at that raw level is read off the model's own quantile curve. The
+        output keeps the same shape and the same ordering.
         """
         pred = np.asarray(pred_quantiles, dtype=float)
         requested = (np.asarray(requested_levels, dtype=float)
@@ -111,9 +141,9 @@ class QuantileCalibrator:
         out = np.empty(pred.shape[:2] + (len(requested),))
         for h in range(pred.shape[1]):
             for i in range(pred.shape[0]):
-                out[i, h] = np.interp(raw_levels, self.levels, pred[i, h])
-        # Interpolation cannot cross, but floating point can tie, so the result is
-        # made strictly non decreasing to keep every downstream reader safe.
+                out[i, h] = self._read_at(pred[i, h], raw_levels)
+        # Reading cannot cross, but floating point can tie, so the result is made
+        # non decreasing to keep every downstream reader safe.
         return np.maximum.accumulate(out, axis=2)
 
     def state(self) -> dict:
