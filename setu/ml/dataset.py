@@ -94,19 +94,25 @@ def windowed_samples(features: pd.DataFrame, target: pd.Series, window: int,
     x_all = features.values
     y_all = target.values
     n = len(features)
-    xs, ys, stamps = [], [], []
+    xs, ys, nows, stamps = [], [], [], []
     for t in range(window - 1, n - max(steps)):
         chunk = x_all[t - window + 1: t + 1]
         future = np.array([y_all[t + s] for s in steps])
-        if np.isnan(chunk).any() or np.isnan(future).any():
+        current = y_all[t]
+        if np.isnan(chunk).any() or np.isnan(future).any() or np.isnan(current):
             continue
         xs.append(chunk.T)  # stored as (features, time)
         ys.append(future)
+        # The ground disturbance as it stands at the moment of the forecast. This
+        # is what a persistence forecaster would say, and every score the model
+        # reports has to be read against it.
+        nows.append(current)
         stamps.append(features.index[t])
     if not xs:
         return (np.zeros((0, len(FEATURE_NAMES), window)),
-                np.zeros((0, len(horizons))), pd.DatetimeIndex([]))
-    return np.asarray(xs), np.asarray(ys), pd.DatetimeIndex(stamps)
+                np.zeros((0, len(horizons))), np.zeros(0), pd.DatetimeIndex([]))
+    return (np.asarray(xs), np.asarray(ys), np.asarray(nows),
+            pd.DatetimeIndex(stamps))
 
 
 def build_dataset(events, window: int, observatories=("ABG", "HYB"),
@@ -118,7 +124,7 @@ def build_dataset(events, window: int, observatories=("ABG", "HYB"),
     stations sit in the same low geomagnetic latitude band, so the large scale
     storm time variation they see is the same.
     """
-    xs, ys, stamps, tags = [], [], [], []
+    xs, ys, nows, stamps, tags = [], [], [], [], []
     for event in events:
         for obs in observatories:
             try:
@@ -126,13 +132,14 @@ def build_dataset(events, window: int, observatories=("ABG", "HYB"),
             except Exception as exc:
                 log.warning("skipping %s at %s: %s", event.key, obs, exc)
                 continue
-            x, y, idx = windowed_samples(features, target, window, horizons)
+            x, y, now, idx = windowed_samples(features, target, window, horizons)
             if len(x) == 0:
                 log.warning("no usable samples for %s at %s", event.key, obs)
                 continue
             log.info("%s at %s: %d samples", event.key, obs, len(x))
             xs.append(x)
             ys.append(y)
+            nows.append(now)
             stamps.append(idx)
             tags.extend([f"{event.key}/{obs}"] * len(x))
     if not xs:
@@ -141,6 +148,7 @@ def build_dataset(events, window: int, observatories=("ABG", "HYB"),
         "x": np.concatenate(xs),
         "y": to_log_target(np.concatenate(ys)),
         "y_raw": np.concatenate(ys),
+        "y_now": np.concatenate(nows),
         "time": np.concatenate([i.values for i in stamps]),
         "tag": np.asarray(tags),
     }

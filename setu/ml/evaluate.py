@@ -135,12 +135,37 @@ def coverage(pred_quantiles, target, quantiles) -> dict:
     return {float(q): float(c) for q, c in zip(quantiles, below)}
 
 
-def persistence_baseline(recent_dbdt, horizons_steps):
-    """The forecast that says the next hour looks like the last few minutes.
+def persistence_scores(current_dbdt, observed_future, threshold) -> dict:
+    """Skill of the forecast that says the next hour looks like this minute.
 
-    This is the baseline every space weather forecast has to beat, because it is
-    free and it is surprisingly hard to improve on during the quiet times that
-    make up most of the record.
+    This is the baseline every space weather forecast has to beat. It is free, it
+    needs no model, and it is surprisingly hard to improve on, because the ground
+    is quiet most of the time and saying so is usually right.
+
+    The comparison is deliberately generous to the baseline. Persistence is given
+    the ground measurement as it stands at the moment of the forecast, which is
+    genuinely available to an operator, and it raises the alarm whenever that
+    measurement is already above the threshold.
+
+    Args:
+        current_dbdt: Observed rate of change at the moment each forecast is made.
+        observed_future: What the ground actually did at the horizon.
+        threshold: Alerting level in nanotesla per second.
     """
-    recent = np.asarray(recent_dbdt, dtype=float)
-    return np.repeat(recent[:, None], len(horizons_steps), axis=1)
+    forecast = np.asarray(current_dbdt, dtype=float) >= threshold
+    observed = np.asarray(observed_future, dtype=float) >= threshold
+    return skill_scores(observed, forecast)
+
+
+def skill_gain(model_scores, baseline_scores) -> dict:
+    """How much the model adds over the baseline, in each measure that matters.
+
+    A skill score quoted without the baseline it beat is not a claim about
+    anything, so this pairing is what gets reported.
+    """
+    out = {}
+    for key in ("pod", "far", "hss", "pss", "csi"):
+        model = model_scores.get(key, float("nan"))
+        base = baseline_scores.get(key, float("nan"))
+        out[key] = {"model": model, "persistence": base, "difference": model - base}
+    return out

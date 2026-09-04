@@ -21,7 +21,8 @@ from setu.data.storms import test_events, training_events
 from setu.ml.calibration import QuantileCalibrator, coverage_error
 from setu.ml.dataset import INPUT_CADENCE_MIN, build_dataset, standardise
 from setu.ml.evaluate import (best_threshold, brier_skill_score, coverage,
-                              pinball, reliability, skill_scores)
+                              persistence_scores, pinball, reliability,
+                              skill_gain, skill_scores)
 from setu.ml.model import GICNet, from_log_target, monotonicity_penalty
 from setu.ml.nn import Adam, pinball_loss
 
@@ -131,6 +132,8 @@ def train(window=96, channels=24, epochs=14, batch_size=96, lr=1.5e-3,
     x_tr, y_tr = train_block["x"][~is_val], train_block["y"][~is_val]
     x_va, y_va = train_block["x"][is_val], train_block["y"][is_val]
     x_te, y_te = test_block["x"], test_block["y"]
+    now_va = train_block["y_now"][is_val]
+    now_te = test_block["y_now"]
 
     # The validation set has to be scored the same way the training set is, or
     # model selection works against the very change the weighting is making. An
@@ -250,8 +253,7 @@ def train(window=96, channels=24, epochs=14, batch_size=96, lr=1.5e-3,
     if not use_calibration:
         calibrator = None
 
-    report = evaluate(model, x_va, y_va, x_te, y_te, train_block, test_block,
-                      calibrator)
+    report = evaluate(model, x_va, y_va, x_te, y_te, now_va, now_te, calibrator)
     report["history"] = history
     report["time_base"] = time_base
     report["tail_weight"] = tail_weight
@@ -284,8 +286,7 @@ def predict_in_batches(model, x, batch_size=256):
     return np.concatenate(out) if out else np.zeros((0,))
 
 
-def evaluate(model, x_va, y_va, x_te, y_te, train_block, test_block,
-             calibrator=None) -> dict:
+def evaluate(model, x_va, y_va, x_te, y_te, now_va, now_te, calibrator=None) -> dict:
     """Score the model on the held out storms.
 
     Both the raw and the calibrated predictions are scored. The raw numbers say
@@ -332,6 +333,14 @@ def evaluate(model, x_va, y_va, x_te, y_te, train_block, test_block,
             scores["probability_cut"] = cut
             scores["brier_skill_score"] = brier_skill_score(observed_te, prob_te)
             scores["reliability"] = reliability(observed_te, prob_te, bins=8)
+
+            # The baseline this has to beat. Persistence is given the ground
+            # measurement as it stands when the forecast is made, which an
+            # operator genuinely has, and it alarms whenever that is already above
+            # the threshold.
+            baseline = persistence_scores(now_te, te_actual[:, h_index], threshold)
+            scores["persistence"] = baseline
+            scores["gain_over_persistence"] = skill_gain(scores, baseline)
             per_threshold[f"{horizon}min"] = scores
         if per_threshold:
             report["thresholds"][f"{threshold}"] = per_threshold
