@@ -209,3 +209,25 @@ def test_a_station_that_stopped_reporting_is_not_treated_as_ground_truth(monkeyp
 
     # With only the stale station on offer, nothing is returned at all.
     assert magnetometer.first_reporting(("ABG",)) == (None, None)
+
+
+def test_a_forecast_is_never_counted_in_both_files_at_once():
+    """A row lives in the ledger or in the daily record, never in both.
+
+    The daily record is only ever added to, so a row that is folded into it while
+    still sitting in the ledger is counted twice for as long as it stays there.
+    This is the invariant that keeps the running total honest.
+    """
+    entries = [_entry("2026-01-01 10:00", 0.0, 0.5, True),
+               _entry("2026-01-01 11:00", 0.0, 0.0, False)]
+
+    # While the rows are in the ledger and the record is empty, they are counted once.
+    assert nowcast.scoreboard({"days": {}}, entries)["horizons"]["30"]["n"] == 2
+
+    # Once they have moved into the record, they are counted once from there.
+    rollup = nowcast.fold(entries, {"days": {}})
+    assert nowcast.scoreboard(rollup, [])["horizons"]["30"]["n"] == 2
+
+    # Holding them in both places at once is what the double count looks like, and
+    # it is exactly what the service must never do.
+    assert nowcast.scoreboard(rollup, entries)["horizons"]["30"]["n"] == 4

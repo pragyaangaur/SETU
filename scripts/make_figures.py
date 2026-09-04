@@ -358,6 +358,79 @@ def figure_reliability():
     save(fig, "06_reliability")
 
 
+
+def figure_standing_record():
+    """What the service has actually done since it started running.
+
+    Every other figure in this project is drawn from a storm that has already been
+    studied. This one is drawn from the ledger, which holds forecasts written down
+    before their outcomes existed and the observed values attached afterwards. It is
+    the only figure here that will look different tomorrow.
+    """
+    path = ROOT / "docs" / "data" / "ledger.json"
+    if not path.exists():
+        print("  skipping the standing record, no ledger found")
+        return
+    ledger = json.loads(path.read_text())
+    entries = ledger.get("entries", [])
+    board = ledger.get("scoreboard", {})
+    if len(entries) < 8:
+        print("  skipping the standing record, the ledger is too short to plot")
+        return
+
+    horizon = "30"
+    issued, median, low, high, observed = [], [], [], [], []
+    for entry in entries:
+        record = entry["horizons"].get(horizon)
+        if record is None:
+            continue
+        issued.append(pd.Timestamp(record["valid_at"]))
+        median.append(record["median"])
+        quantiles = record.get("quantiles")
+        low.append(quantiles[0] if quantiles else np.nan)
+        high.append(quantiles[-2] if quantiles else np.nan)
+        observed.append(record.get("observed_dbdt", np.nan))
+
+    issued = pd.DatetimeIndex(issued)
+    observed = np.array([np.nan if v is None else v for v in observed], dtype=float)
+
+    fig, axes = plt.subplots(2, 1, figsize=(9.5, 4.6), sharex=True,
+                             gridspec_kw={"height_ratios": [2.2, 1]})
+
+    axes[0].fill_between(issued, low, high, color=BAND, alpha=0.18,
+                         linewidth=0, label="forecast, 10th to 90th percentile")
+    axes[0].plot(issued, median, color=ACCENT, linewidth=1.4,
+                 label="forecast median")
+    axes[0].plot(issued, observed, color=INK, linewidth=1.1,
+                 label="what the ground actually did")
+    axes[0].axhline(0.1, color=WARN, linewidth=1.0, linestyle="--",
+                    label="alert level, 0.1 nT per second")
+    axes[0].set_ylabel("nT per second")
+    axes[0].set_title("Forecast at 30 minutes, against the ground, since the service started")
+    axes[0].legend(frameon=False, fontsize=8, ncol=2, loc="upper left")
+
+    settled = np.isfinite(observed)
+    axes[1].step(issued, np.cumsum(np.ones(len(issued))), color=DIM,
+                 where="post", linewidth=1.2, label="forecasts issued")
+    axes[1].step(issued, np.cumsum(settled), color=GOOD, where="post",
+                 linewidth=1.6, label="scored against the ground")
+    axes[1].set_ylabel("running count")
+    axes[1].set_xlabel("time, UTC")
+    axes[1].legend(frameon=False, fontsize=8, loc="upper left")
+    for ax in axes:
+        ax.grid(axis="y", color=DIM, alpha=0.15)
+
+    verified = board.get("horizon_forecasts_verified", 0)
+    days = board.get("days_running", 0)
+    caption = (f"{board.get('forecasts_issued', 0)} forecasts over {days} days, "
+               f"{verified} of them scored")
+    if board.get("quiet"):
+        caption += ", no false alarm and no missed event because the Sun stayed quiet"
+    fig.suptitle("The standing record: " + caption, fontsize=11, fontweight="bold")
+    fig.subplots_adjust(top=0.86, hspace=0.16)
+    save(fig, "07_standing_record")
+
+
 def main():
     print(f"writing figures to {FIG_DIR}")
     figure_ground_response()
@@ -366,6 +439,7 @@ def main():
     figure_storm_chain()
     figure_skill()
     figure_reliability()
+    figure_standing_record()
     print("done")
     return 0
 

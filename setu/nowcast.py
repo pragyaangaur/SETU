@@ -554,10 +554,12 @@ def backfill(model, scaler, calibrator=None, path=LEDGER_PATH,
         added += 1
 
     existing.sort(key=lambda e: e["issued_at"])
-    rollup = fold([e for e in existing if e.get("backfilled")], load_rollup())
-    ROLLUP_PATH.write_text(json.dumps(rollup, indent=1, default=float))
 
-    board = scoreboard(rollup, [e for e in existing if not e.get("backfilled")])
+    # The rollup is deliberately not written here. A forecast lives in exactly one
+    # of the two files, and it moves from the ledger into the daily record only
+    # when it is dropped from the ledger, which ``run`` does once every horizon has
+    # settled. Writing it in both places counted every backfilled row twice.
+    board = scoreboard(load_rollup(), existing)
     path.write_text(json.dumps({
         "written_at": str(_now()),
         "what_this_is": (
