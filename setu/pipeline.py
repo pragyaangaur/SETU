@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 def replay(event_key: str, model: GICNet, scaler: Standardiser,
            observatory: str = "ABG", stride: int = 3, n_scenarios: int = 60,
            plan_threshold: float = 0.25, horizon_index: int = 1,
-           time_base: str = DEFAULT_TIME_BASE) -> dict:
+           time_base: str = DEFAULT_TIME_BASE, calibrator=None) -> dict:
     """Walk through one storm and record what the system would have said.
 
     Args:
@@ -48,6 +48,9 @@ def replay(event_key: str, model: GICNet, scaler: Standardiser,
             the decision layer is run at all. Below it the recommendation is to do
             nothing, which is the right answer almost all of the time.
         horizon_index: Which forecast horizon the plan is built for.
+        calibrator: Optional quantile calibration map fitted during training. When
+            it is given, the forecast an operator sees is the calibrated one, which
+            is the whole point of having fitted it.
 
     Returns:
         A dictionary of arrays and records, ready to be written out for the
@@ -67,6 +70,8 @@ def replay(event_key: str, model: GICNet, scaler: Standardiser,
         from_log_target(model.forward(scaled[i: i + 256], training=False))
         for i in range(0, len(scaled), 256)
     ])
+    if calibrator is not None:
+        quantiles = calibrator.calibrate(quantiles)
 
     network = Network()
     solver = GICSolver(network)

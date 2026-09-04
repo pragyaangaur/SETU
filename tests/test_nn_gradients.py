@@ -88,3 +88,43 @@ def test_pinball_recovers_the_quantile():
         guess -= 5.0 * grad.sum(axis=0, keepdims=True)
     truth = np.quantile(sample, levels)
     assert np.allclose(guess.ravel(), truth, atol=0.08)
+
+
+def test_calibration_fixes_an_over_dispersed_model():
+    """A model whose quantiles are far too wide must come back calibrated."""
+    from setu.ml.calibration import QuantileCalibrator, coverage_error
+
+    levels = (0.10, 0.25, 0.50, 0.75, 0.90, 0.98)
+    normal_quantiles = np.array([-1.2816, -0.6745, 0.0, 0.6745, 1.2816, 2.0537])
+    truth = RNG.normal(0.0, 1.0, (4000, 2))
+    wide = np.broadcast_to(1.8 * normal_quantiles, (4000, 2, len(levels))).copy()
+
+    before = coverage_error(wide, truth, levels)
+    calibrator = QuantileCalibrator(levels).fit(wide[:2000], truth[:2000])
+    after = coverage_error(calibrator.calibrate(wide[2000:]), truth[2000:], levels)
+
+    assert before > 0.05
+    assert after < 0.02
+    assert after < before / 3.0
+
+
+def test_calibration_keeps_quantiles_in_order():
+    from setu.ml.calibration import QuantileCalibrator
+
+    levels = (0.10, 0.25, 0.50, 0.75, 0.90, 0.98)
+    truth = RNG.normal(0.0, 1.0, (600, 2))
+    pred = np.sort(RNG.normal(0.0, 1.0, (600, 2, len(levels))), axis=2)
+    calibrator = QuantileCalibrator(levels).fit(pred, truth)
+    out = calibrator.calibrate(pred)
+    assert np.all(np.diff(out, axis=2) >= -1e-12)
+
+
+def test_calibration_round_trips_through_its_saved_state():
+    from setu.ml.calibration import QuantileCalibrator
+
+    levels = (0.10, 0.5, 0.90)
+    truth = RNG.normal(0.0, 1.0, (400, 1))
+    pred = np.sort(RNG.normal(0.0, 1.0, (400, 1, 3)), axis=2)
+    calibrator = QuantileCalibrator(levels).fit(pred, truth)
+    restored = QuantileCalibrator.from_state(calibrator.state())
+    assert np.allclose(calibrator.calibrate(pred), restored.calibrate(pred))

@@ -20,6 +20,7 @@ from setu.decision.scenarios import build_scenarios
 from setu.decision.policy import PolicyOptimiser
 from setu.grid.network import Network
 from setu.grid.voltage import VoltageModel
+from setu.ml.calibration import QuantileCalibrator
 from setu.ml.features import FEATURE_NAMES, Standardiser
 from setu.ml.model import GICNet
 from setu.physics.earth import (BENGAL_TRIPURA_BASIN, BRAHMAPUTRA_VALLEY,
@@ -35,6 +36,8 @@ TIME_BASE = "l1"
 # untagged names are the fallback, so an older run still loads.
 MODEL_CANDIDATES = (ARTIFACT_DIR / f"gicnet_{TIME_BASE}.npz", ARTIFACT_DIR / "gicnet.npz")
 SCALER_CANDIDATES = (ARTIFACT_DIR / f"scaler_{TIME_BASE}.npz", ARTIFACT_DIR / "scaler.npz")
+CALIBRATOR_CANDIDATES = (ARTIFACT_DIR / f"calibrator_{TIME_BASE}.npz",
+                         ARTIFACT_DIR / "calibrator.npz")
 
 # The extreme scenario set. These quantiles correspond to a ground disturbance well
 # beyond anything in the modern Indian record, at the level historical accounts put
@@ -65,7 +68,13 @@ def load_model():
                 raise SystemExit(
                     f"{scaler_path.name} was fitted on a different feature set than "
                     "the code now builds, so retrain with 'python -m setu.cli train'.")
-            return model, scaler
+            calibrator = None
+            for path in CALIBRATOR_CANDIDATES:
+                if path.exists():
+                    calibrator = QuantileCalibrator.from_state(
+                        np.load(path, allow_pickle=False))
+                    break
+            return model, scaler, calibrator
     raise SystemExit("no trained model found, run 'python -m setu.cli train' first")
 
 
@@ -89,9 +98,9 @@ def cmd_train(args):
 
 
 def cmd_replay(args):
-    model, scaler = load_model()
+    model, scaler, calibrator = load_model()
     result = replay(args.event, model, scaler, observatory=args.observatory,
-                    stride=args.stride, time_base=TIME_BASE)
+                    stride=args.stride, time_base=TIME_BASE, calibrator=calibrator)
     result["lead_time"] = {
         str(t): lead_time_summary(result, t) for t in (0.1, 0.3)
     }
@@ -177,7 +186,7 @@ def cmd_live(args):
     print(f"  ours {check['our_delay_min']} min, theirs {check['noaa_delay_min']} min, "
           f"median difference {check['median_difference_min']} min")
 
-    model, scaler = load_model()
+    model, scaler, calibrator = load_model()
     frame = fetch_live()
     features = build_features(frame).resample(f"{INPUT_CADENCE_MIN}min").mean()
     features = features.ffill().bfill()
@@ -188,7 +197,10 @@ def cmd_live(args):
 
     window = features.iloc[-model.window:][FEATURE_NAMES].values
     scaled = scaler.transform(window).T[None, :, :]
-    quantiles = model.predict_quantiles(scaled)[0]
+    quantiles = model.predict_quantiles(scaled)
+    if calibrator is not None:
+        quantiles = calibrator.calibrate(quantiles)
+    quantiles = quantiles[0]
 
     print("\nforecast of the ground rate of change at an Indian low latitude station")
     for h_index, horizon in enumerate(FORECAST_HORIZONS_MIN):

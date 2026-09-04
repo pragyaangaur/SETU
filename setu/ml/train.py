@@ -18,6 +18,7 @@ import numpy as np
 from setu.config import (ARTIFACT_DIR, DBDT_THRESHOLDS_NT_PER_S, DEFAULT_TIME_BASE,
                          FORECAST_HORIZONS_MIN, QUANTILES)
 from setu.data.storms import test_events, training_events
+from setu.ml.calibration import QuantileCalibrator, coverage_error
 from setu.ml.dataset import INPUT_CADENCE_MIN, build_dataset, standardise
 from setu.ml.evaluate import (best_threshold, brier_skill_score, coverage,
                               pinball, reliability, skill_scores)
@@ -204,11 +205,25 @@ def train(window=96, channels=24, epochs=14, batch_size=96, lr=1.5e-3,
     for k, v in model.parameters().items():
         v[...] = best_state[k]
 
-    report = evaluate(model, x_va, y_va, x_te, y_te, train_block, test_block)
+    # The calibration map is fitted on validation data only. Fitting it on the test
+    # storms would make every calibration number in the report meaningless, which
+    # is the whole reason the report exists.
+    calibrator = QuantileCalibrator(QUANTILES)
+    calibrator.fit(predict_in_batches(model, x_va), y_va)
+    if verbose:
+        log.info("calibration map fitted, q90 now read at raw level %.3f",
+                 calibrator.raw_level(0.90))
+
+    report = evaluate(model, x_va, y_va, x_te, y_te, train_block, test_block,
+                      calibrator)
     report["history"] = history
     report["time_base"] = time_base
     report["tail_weight"] = tail_weight
     report["best_epoch"] = int(min(history, key=lambda h: h["validation"])["epoch"])
+    report["calibration"] = {
+        "requested_levels": list(QUANTILES),
+        "raw_levels": [calibrator.raw_level(q) for q in QUANTILES],
+    }
     report["settings"] = {"channels": channels, "dropout": dropout,
                           "weight_decay": weight_decay, "input_noise": input_noise,
                           "learning_rate": lr, "batch_size": batch_size,
@@ -216,7 +231,7 @@ def train(window=96, channels=24, epochs=14, batch_size=96, lr=1.5e-3,
     report["training_seconds"] = round(time.time() - t0, 1)
     report["parameters"] = int(sum(v.size for v in model.parameters().values()))
     report["receptive_field_minutes"] = model.receptive_field * INPUT_CADENCE_MIN
-    return model, scaler, report
+    return model, scaler, calibrator, report
 
 
 def predict_in_batches(model, x, batch_size=256):
@@ -227,16 +242,28 @@ def predict_in_batches(model, x, batch_size=256):
     return np.concatenate(out) if out else np.zeros((0,))
 
 
-def evaluate(model, x_va, y_va, x_te, y_te, train_block, test_block) -> dict:
-    """Score the model on the held out storms, against persistence."""
+def evaluate(model, x_va, y_va, x_te, y_te, train_block, test_block,
+             calibrator=None) -> dict:
+    """Score the model on the held out storms.
+
+    Both the raw and the calibrated predictions are scored. The raw numbers say
+    what the network learned and the calibrated ones say what an operator would
+    actually be handed, and the gap between the two is worth seeing rather than
+    hiding.
+    """
     va_pred = predict_in_batches(model, x_va)
-    te_pred = predict_in_batches(model, x_te)
+    te_pred_raw = predict_in_batches(model, x_te)
+    te_pred = (calibrator.calibrate(te_pred_raw) if calibrator is not None
+               else te_pred_raw)
     te_actual = from_log_target(y_te)
 
     report = {
         "test_pinball": pinball(te_pred, y_te, QUANTILES),
         "validation_pinball": pinball(va_pred, y_va, QUANTILES),
         "coverage": coverage(te_pred, y_te, QUANTILES),
+        "coverage_before_calibration": coverage(te_pred_raw, y_te, QUANTILES),
+        "coverage_error": coverage_error(te_pred, y_te, QUANTILES),
+        "coverage_error_before_calibration": coverage_error(te_pred_raw, y_te, QUANTILES),
         "thresholds": {},
     }
 
@@ -248,7 +275,9 @@ def evaluate(model, x_va, y_va, x_te, y_te, train_block, test_block) -> dict:
         for h_index, horizon in enumerate(FORECAST_HORIZONS_MIN):
             observed_va = from_log_target(y_va[:, h_index]) >= threshold
             observed_te = te_actual[:, h_index] >= threshold
-            prob_va = quantile_exceedance(va_pred[:, h_index], threshold)
+            va_for_cut = (calibrator.calibrate(va_pred) if calibrator is not None
+                          else va_pred)
+            prob_va = quantile_exceedance(va_for_cut[:, h_index], threshold)
             prob_te = quantile_exceedance(te_pred[:, h_index], threshold)
             if observed_va.sum() < 5 or observed_te.sum() < 5:
                 continue
@@ -287,10 +316,11 @@ def main(tag=None, **kwargs):
             different settings can sit side by side and be compared.
     """
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    model, scaler, report = train(**kwargs)
+    model, scaler, calibrator, report = train(**kwargs)
     suffix = f"_{tag}" if tag else ""
     model.save(ARTIFACT_DIR / f"gicnet{suffix}.npz")
     np.savez_compressed(ARTIFACT_DIR / f"scaler{suffix}.npz", **scaler.state())
+    np.savez_compressed(ARTIFACT_DIR / f"calibrator{suffix}.npz", **calibrator.state())
     (ARTIFACT_DIR / f"training_report{suffix}.json").write_text(
         json.dumps(report, indent=2, default=float))
     log.info("saved model and report to %s", ARTIFACT_DIR)
