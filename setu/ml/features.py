@@ -26,7 +26,14 @@ RAW_INPUTS = ["b_total", "bx_gsm", "by_gsm", "bz_gsm", "speed", "density", "pres
 DERIVED_INPUTS = [
     "clock_sin", "clock_cos", "bt", "bs", "newell", "epsilon",
     "kan_lee", "dyn_pressure", "d_pressure", "d_bz", "alfven_mach",
+    "propagation_delay_min",
 ]
+
+# Distance from the spacecraft to the Earth when the position is not in the record.
+# The first Lagrange point sits about 1.5 million kilometres sunward, which is
+# roughly 235 Earth radii.
+DEFAULT_SC_DISTANCE_RE = 235.0
+EARTH_RADIUS_KM = 6371.0
 
 FEATURE_NAMES = RAW_INPUTS + DERIVED_INPUTS
 
@@ -115,6 +122,17 @@ def build_features(solar_wind: pd.DataFrame) -> pd.DataFrame:
     with np.errstate(divide="ignore", invalid="ignore"):
         v_alfven = 21.8 * b / np.sqrt(np.maximum(n, 1e-6))
         f["alfven_mach"] = np.where(v_alfven > 0, np.abs(v) / v_alfven, np.nan)
+
+    # How long this parcel of solar wind will take to reach the Earth, in minute.
+    # When the record is on the spacecraft clock this is the single most important
+    # input in the whole set, because it tells the network how far ahead of the
+    # arrival it currently is. Without it the network would have to infer the delay
+    # from the speed on its own, and the delay is what separates a horizon that has
+    # to stay quiet from one that has to raise the alarm.
+    distance_re = (solar_wind["sc_x_re"].abs()
+                   if "sc_x_re" in solar_wind else DEFAULT_SC_DISTANCE_RE)
+    travel_speed = f["speed"].where(f["speed"] > 100.0)
+    f["propagation_delay_min"] = (distance_re * EARTH_RADIUS_KM / travel_speed) / 60.0
 
     return f[FEATURE_NAMES]
 

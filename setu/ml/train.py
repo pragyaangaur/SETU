@@ -15,7 +15,7 @@ import time
 
 import numpy as np
 
-from setu.config import (ARTIFACT_DIR, DBDT_THRESHOLDS_NT_PER_S,
+from setu.config import (ARTIFACT_DIR, DBDT_THRESHOLDS_NT_PER_S, DEFAULT_TIME_BASE,
                          FORECAST_HORIZONS_MIN, QUANTILES)
 from setu.data.storms import test_events, training_events
 from setu.ml.dataset import INPUT_CADENCE_MIN, build_dataset, standardise
@@ -32,17 +32,65 @@ log = logging.getLogger(__name__)
 CONSTRAINED_FEATURES = ("newell", "kan_lee", "bs")
 
 
-def train(window=96, channels=32, epochs=24, batch_size=64, lr=2.0e-3,
-          physics_weight=0.5, seed=0, observatories=("ABG", "HYB"),
-          validation_fraction=0.2, verbose=True):
-    """Build the data, fit the model, and return the model with its scores."""
+def tail_weights(y_log, tail_weight=3.0, reference_quantile=0.85):
+    """Per sample weights that pull the fit toward the disturbed minutes.
+
+    The first version of this model was scored on two storms larger than anything
+    it had trained on, and only 69 percent of observations fell below its predicted
+    ninetieth percentile where 90 percent should have. It was under predicting the
+    tail, which is the one part of the distribution the whole system exists to get
+    right.
+
+    The cause is that quiet minutes outnumber disturbed ones by roughly six to one,
+    so an unweighted fit spends almost all of its effort on minutes where nothing is
+    happening. These weights rise linearly above a high quantile of the training
+    targets and are flat below it, so the quiet minutes still anchor the lower
+    quantiles while the disturbed ones get the attention they need.
+
+    The weights are normalised to average one, which keeps the loss on the same
+    scale as before and means the learning rate does not have to be retuned.
+
+    Args:
+        y_log: Training targets in log space, of shape (samples, horizons).
+        tail_weight: How much extra weight the largest observed target receives.
+        reference_quantile: Where the weighting starts to rise.
+
+    Returns:
+        Weights of the same shape as ``y_log``, averaging one.
+    """
+    y = np.asarray(y_log, dtype=float)
+    reference = np.quantile(y, reference_quantile)
+    spread = max(float(y.max() - reference), 1e-6)
+    w = 1.0 + tail_weight * np.clip((y - reference) / spread, 0.0, None)
+    return w / w.mean()
+
+
+def train(window=96, channels=32, epochs=20, batch_size=96, lr=2.0e-3,
+          physics_weight=0.5, physics_every=4, tail_weight=3.0, seed=0,
+          observatories=("ABG", "HYB"), validation_fraction=0.2,
+          time_base=DEFAULT_TIME_BASE, verbose=True):
+    """Build the data, fit the model, and return the model with its scores.
+
+    Args:
+        physics_every: How often the monotonicity constraint is applied, in
+            batches. The constraint costs three extra forward passes and two extra
+            backward passes, so applying it on every batch roughly triples the cost
+            of training for a penalty that is already small after the first epoch.
+            Applying it every fourth batch keeps the constraint satisfied at a
+            fraction of the price.
+        tail_weight: Strength of the weighting toward disturbed minutes. Zero turns
+            it off, which reproduces the earlier behaviour.
+        time_base: ``l1`` or ``bowshock``. See ``setu.ml.dataset.event_frames``.
+    """
     from setu.ml.features import FEATURE_NAMES
 
     rng = np.random.default_rng(seed)
     t0 = time.time()
 
-    train_block = build_dataset(training_events(), window, observatories)
-    test_block = build_dataset(test_events(), window, observatories)
+    train_block = build_dataset(training_events(), window, observatories,
+                                time_base=time_base)
+    test_block = build_dataset(test_events(), window, observatories,
+                               time_base=time_base)
     scaler, train_block, (test_block,) = standardise(train_block, test_block)
 
     # The validation split is taken by whole storm, for the same reason the test
@@ -58,9 +106,15 @@ def train(window=96, channels=32, epochs=24, batch_size=64, lr=2.0e-3,
     x_va, y_va = train_block["x"][is_val], train_block["y"][is_val]
     x_te, y_te = test_block["x"], test_block["y"]
 
+    weights_tr = (tail_weights(y_tr, tail_weight) if tail_weight > 0
+                  else np.ones_like(y_tr))
+
     if verbose:
+        log.info("time base: %s", time_base)
         log.info("train %d, validation %d, test %d samples", len(x_tr), len(x_va), len(x_te))
-        log.info("validation storms: %s", sorted(val_tags))
+        log.info("validation storms: %s", sorted(str(t) for t in val_tags))
+        log.info("tail weighting: %.1f to %.1f across the training targets",
+                 float(weights_tr.min()), float(weights_tr.max()))
 
     model = GICNet(n_features=x_tr.shape[1], channels=channels, window=window, seed=seed)
     optimiser = Adam(model.parameters(), lr=lr, weight_decay=1e-5, clip=1.0)
@@ -79,14 +133,14 @@ def train(window=96, channels=32, epochs=24, batch_size=64, lr=2.0e-3,
         optimiser.lr = lr * 0.5 * (1.0 + np.cos(np.pi * epoch / max(1, epochs - 1)))
         for step in range(steps):
             idx = order[step * batch_size: (step + 1) * batch_size]
-            xb, yb = x_tr[idx], y_tr[idx]
+            xb, yb, wb = x_tr[idx], y_tr[idx], weights_tr[idx]
 
             model.zero_grad()
             pred = model.forward(xb, training=True)
-            loss, grad = pinball_loss(pred, yb, QUANTILES)
+            loss, grad = pinball_loss(pred, yb, QUANTILES, weights=wb)
             model.backward(grad)
 
-            if physics_weight > 0:
+            if physics_weight > 0 and step % physics_every == 0:
                 running_phys += monotonicity_penalty(model, xb, constrained,
                                                      weight=physics_weight)
             optimiser.step(model.gradients())
@@ -94,11 +148,16 @@ def train(window=96, channels=32, epochs=24, batch_size=64, lr=2.0e-3,
 
         val_pred = predict_in_batches(model, x_va)
         val_loss = pinball(val_pred, y_va, QUANTILES)
+        cover = coverage(val_pred, y_va, QUANTILES)
         history.append({"epoch": epoch, "train": running / steps,
-                        "physics": running_phys / steps, "validation": val_loss})
+                        "physics": running_phys / max(1, steps // physics_every),
+                        "validation": val_loss, "coverage_at_90": cover[0.90]})
         if verbose:
-            log.info("epoch %2d  train %.4f  physics %.5f  validation %.4f",
-                     epoch, running / steps, running_phys / steps, val_loss)
+            log.info("epoch %2d  train %.4f  physics %.5f  validation %.4f  "
+                     "coverage at q90 %.3f",
+                     epoch, running / steps,
+                     running_phys / max(1, steps // physics_every), val_loss,
+                     cover[0.90])
         if val_loss < best_val:
             best_val = val_loss
             best_state = {k: v.copy() for k, v in model.parameters().items()}
@@ -108,6 +167,8 @@ def train(window=96, channels=32, epochs=24, batch_size=64, lr=2.0e-3,
 
     report = evaluate(model, x_va, y_va, x_te, y_te, train_block, test_block)
     report["history"] = history
+    report["time_base"] = time_base
+    report["tail_weight"] = tail_weight
     report["training_seconds"] = round(time.time() - t0, 1)
     report["parameters"] = int(sum(v.size for v in model.parameters().values()))
     report["receptive_field_minutes"] = model.receptive_field * INPUT_CADENCE_MIN
@@ -174,12 +235,20 @@ def quantile_exceedance(quantile_row, threshold):
     return out
 
 
-def main(**kwargs):
+def main(tag=None, **kwargs):
+    """Train once and save the model, the scaler, and the report.
+
+    Args:
+        tag: Optional suffix for the saved file names, so that two runs with
+            different settings can sit side by side and be compared.
+    """
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     model, scaler, report = train(**kwargs)
-    model.save(ARTIFACT_DIR / "gicnet.npz")
-    np.savez_compressed(ARTIFACT_DIR / "scaler.npz", **scaler.state())
-    (ARTIFACT_DIR / "training_report.json").write_text(json.dumps(report, indent=2, default=float))
+    suffix = f"_{tag}" if tag else ""
+    model.save(ARTIFACT_DIR / f"gicnet{suffix}.npz")
+    np.savez_compressed(ARTIFACT_DIR / f"scaler{suffix}.npz", **scaler.state())
+    (ARTIFACT_DIR / f"training_report{suffix}.json").write_text(
+        json.dumps(report, indent=2, default=float))
     log.info("saved model and report to %s", ARTIFACT_DIR)
     return report
 

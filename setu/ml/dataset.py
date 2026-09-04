@@ -21,9 +21,9 @@ import logging
 import numpy as np
 import pandas as pd
 
-from setu.config import CADENCE_S, FORECAST_HORIZONS_MIN
+from setu.config import CADENCE_S, DEFAULT_TIME_BASE, FORECAST_HORIZONS_MIN
 from setu.data.magnetometer import fetch_observatory, to_disturbance
-from setu.data.omni import fetch_range, fill_gaps
+from setu.data.omni import fetch_range, fill_gaps, to_l1_time_base
 from setu.data.storms import StormEvent
 from setu.ml.features import FEATURE_NAMES, Standardiser, build_features
 from setu.ml.model import to_log_target
@@ -35,16 +35,33 @@ INPUT_CADENCE_MIN = 5
 TARGET_WINDOW_MIN = 15  # peak is taken over this span, centred on the horizon
 
 
-def event_frames(event: StormEvent, observatory: str = "ABG"):
+def event_frames(event: StormEvent, observatory: str = "ABG",
+                 time_base: str = DEFAULT_TIME_BASE):
     """Load one storm and return aligned solar wind features and ground target.
+
+    Args:
+        event: The storm to load.
+        observatory: Which ground station provides the target.
+        time_base: ``l1`` puts the solar wind on the clock of the spacecraft that
+            measured it, so a forecast horizon is real warning time. ``bowshock``
+            leaves it on the archive convention, where a shock appears at the same
+            instant it strikes the Earth and there is no warning to be had. The
+            second option exists so the two can be compared, which is the cleanest
+            way to show what the choice is worth.
 
     Returns:
         A pair of frames on a common five minute index. The first holds the model
         inputs, the second holds the one minute peak rate of change resampled to
-        the same grid.
+        the same grid. The target always stays on Earth time, because that is when
+        the ground actually moved.
     """
     days = (event.end - event.start).days + 1
-    solar_wind = fill_gaps(fetch_range(event.start, event.end))
+    solar_wind = fetch_range(event.start, event.end)
+    if time_base == "l1":
+        solar_wind = to_l1_time_base(solar_wind)
+    elif time_base != "bowshock":
+        raise ValueError(f"unknown time base {time_base!r}")
+    solar_wind = fill_gaps(solar_wind)
     ground = to_disturbance(fetch_observatory(observatory, event.start, days))
 
     rate = pd.Series(
@@ -93,7 +110,7 @@ def windowed_samples(features: pd.DataFrame, target: pd.Series, window: int,
 
 
 def build_dataset(events, window: int, observatories=("ABG", "HYB"),
-                  horizons=FORECAST_HORIZONS_MIN):
+                  horizons=FORECAST_HORIZONS_MIN, time_base=DEFAULT_TIME_BASE):
     """Build one array set from a list of storms and a list of observatories.
 
     Using more than one observatory roughly doubles the number of samples and it
@@ -105,7 +122,7 @@ def build_dataset(events, window: int, observatories=("ABG", "HYB"),
     for event in events:
         for obs in observatories:
             try:
-                features, target = event_frames(event, obs)
+                features, target = event_frames(event, obs, time_base)
             except Exception as exc:
                 log.warning("skipping %s at %s: %s", event.key, obs, exc)
                 continue

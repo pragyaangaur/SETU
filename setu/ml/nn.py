@@ -283,7 +283,7 @@ class Adam:
             p -= step
 
 
-def pinball_loss(pred, target, quantiles):
+def pinball_loss(pred, target, quantiles, weights=None):
     """Quantile loss, also called the pinball loss.
 
     For a quantile level q the loss charges q for underprediction and 1-q for
@@ -295,6 +295,9 @@ def pinball_loss(pred, target, quantiles):
         pred: Array of shape (batch, horizons, quantiles).
         target: Array of shape (batch, horizons).
         quantiles: Sequence of quantile levels, matching the last axis of ``pred``.
+        weights: Optional per sample and per horizon weights of shape
+            (batch, horizons). They are used to pull the fit toward the disturbed
+            minutes, which are rare and are the only ones anybody cares about.
 
     Returns:
         A pair of the mean loss and the gradient with respect to ``pred``.
@@ -302,5 +305,9 @@ def pinball_loss(pred, target, quantiles):
     q = np.asarray(quantiles).reshape(1, 1, -1)
     diff = target[:, :, None] - pred
     loss = np.maximum(q * diff, (q - 1.0) * diff)
-    grad = np.where(diff > 0, -q, 1.0 - q) / pred.size
-    return float(loss.mean()), grad
+    grad = np.where(diff > 0, -q, 1.0 - q)
+    if weights is not None:
+        w = np.asarray(weights, dtype=float)[:, :, None]
+        loss = loss * w
+        grad = grad * w
+    return float(loss.mean()), grad / pred.size

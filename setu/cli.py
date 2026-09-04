@@ -29,6 +29,7 @@ log = logging.getLogger(__name__)
 
 MODEL_PATH = ARTIFACT_DIR / "gicnet.npz"
 SCALER_PATH = ARTIFACT_DIR / "scaler.npz"
+TIME_BASE = "l1"
 
 # The extreme scenario set. These quantiles correspond to a ground disturbance well
 # beyond anything in the modern Indian record, at the level historical accounts put
@@ -47,16 +48,25 @@ def load_model():
 
 def cmd_train(args):
     from setu.ml.train import main as train_main
-    report = train_main(epochs=args.epochs, channels=args.channels,
-                        window=args.window, physics_weight=args.physics_weight)
-    print(json.dumps({k: v for k, v in report.items() if k != "history"},
-                     indent=2, default=float))
+    report = train_main(tag=args.tag, epochs=args.epochs, channels=args.channels,
+                        window=args.window, batch_size=args.batch_size,
+                        physics_weight=args.physics_weight,
+                        physics_every=args.physics_every,
+                        tail_weight=args.tail_weight, time_base=args.time_base)
+    summary = {k: v for k, v in report.items()
+               if k not in ("history", "thresholds")}
+    print(json.dumps(summary, indent=2, default=float))
+    for threshold, horizons in report["thresholds"].items():
+        for horizon, scores in horizons.items():
+            print(f"  {threshold} nT/s at {horizon:>6s}: POD {scores['pod']:.3f}  "
+                  f"FAR {scores['far']:.3f}  HSS {scores['hss']:.3f}  "
+                  f"PSS {scores['pss']:.3f}")
 
 
 def cmd_replay(args):
     model, scaler = load_model()
     result = replay(args.event, model, scaler, observatory=args.observatory,
-                    stride=args.stride)
+                    stride=args.stride, time_base=TIME_BASE)
     result["lead_time"] = {
         str(t): lead_time_summary(result, t) for t in (0.1, 0.3)
     }
@@ -169,10 +179,18 @@ def build_parser():
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("train", help="fit the forecast network on real storm data")
-    p.add_argument("--epochs", type=int, default=24)
+    p.add_argument("--epochs", type=int, default=20)
     p.add_argument("--channels", type=int, default=32)
     p.add_argument("--window", type=int, default=96)
+    p.add_argument("--batch-size", type=int, default=96)
     p.add_argument("--physics-weight", type=float, default=0.5)
+    p.add_argument("--physics-every", type=int, default=4)
+    p.add_argument("--tail-weight", type=float, default=3.0)
+    p.add_argument("--time-base", default="l1", choices=("l1", "bowshock"),
+                   help="l1 puts the solar wind on the spacecraft clock, which is "
+                        "the only setting that leaves any warning time")
+    p.add_argument("--tag", default=None,
+                   help="suffix for the saved files, so two runs can be compared")
     p.set_defaults(func=cmd_train)
 
     p = sub.add_parser("replay", help="walk through one storm end to end")

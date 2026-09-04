@@ -6,8 +6,10 @@ training and held out sets, and records why each one is interesting. Keeping the
 split explicit and by event, rather than by random sample, is what stops the model
 from being scored on minutes that sit next to minutes it was trained on.
 
-Minimum SYM/H values are from the OMNI archive and are quoted to give a sense of
-scale. A storm below minus 250 nT is severe by any definition.
+Minimum SYM/H values are measured from the OMNI archive rather than quoted from
+memory. Any event carrying zero has not been measured yet, and
+``scripts/verify_catalogue.py`` fills those in and corrects any that disagree with
+the data. A storm below minus 250 nT is severe by any definition.
 """
 
 import datetime as dt
@@ -62,6 +64,39 @@ EVENTS = [
                -148, "train", "Large flare with a fast but poorly connected ejection."),
     StormEvent("2006-12-14", "December 2006 storm", dt.date(2006, 12, 13), dt.date(2006, 12, 17),
                -211, "train", "Late cycle 23 event with a very clean sudden commencement."),
+    StormEvent("2024-10-10", "October 2024 storm", dt.date(2024, 10, 9), dt.date(2024, 10, 13),
+               0, "test",
+               "The second largest event of cycle 25 so far. Held out as a third "
+               "independent test, and the only test event that is not also one of "
+               "the two largest storms in the catalogue."),
+    StormEvent("2001-04-11", "April 2001 storm", dt.date(2001, 4, 10), dt.date(2001, 4, 14),
+               0, "train", "Fast ejection near the maximum of cycle 23."),
+    StormEvent("2001-11-06", "November 2001 storm", dt.date(2001, 11, 5), dt.date(2001, 11, 9),
+               0, "train", "Very strong southward field behind a fast shock."),
+    StormEvent("2003-05-29", "May 2003 storm", dt.date(2003, 5, 28), dt.date(2003, 6, 1),
+               0, "train", "Several ejections arriving in quick succession."),
+    StormEvent("2004-07-27", "July 2004 storm", dt.date(2004, 7, 25), dt.date(2004, 7, 30),
+               0, "train", "Compound event from a long lived active region."),
+    StormEvent("2005-08-24", "August 2005 storm", dt.date(2005, 8, 23), dt.date(2005, 8, 27),
+               0, "train", "Sharp commencement with a deep and fast main phase."),
+    StormEvent("2011-09-26", "September 2011 storm", dt.date(2011, 9, 25), dt.date(2011, 9, 29),
+               0, "train", "Rise of cycle 24, moderate but well observed."),
+    StormEvent("2012-10-01", "October 2012 storm", dt.date(2012, 9, 30), dt.date(2012, 10, 4),
+               0, "train", "Coronal hole stream on top of a weak ejection."),
+    StormEvent("2013-03-17", "March 2013 storm", dt.date(2013, 3, 16), dt.date(2013, 3, 20),
+               0, "train", "Equinox event, when coupling to the solar wind is strongest."),
+    StormEvent("2015-06-23", "June 2015 storm", dt.date(2015, 6, 21), dt.date(2015, 6, 26),
+               0, "train", "One of the largest events of cycle 24."),
+    StormEvent("2015-12-20", "December 2015 storm", dt.date(2015, 12, 19), dt.date(2015, 12, 23),
+               0, "train", "Slow ejection with a long southward field."),
+    StormEvent("2017-05-28", "May 2017 storm", dt.date(2017, 5, 27), dt.date(2017, 5, 31),
+               0, "train", "Late cycle 24, driven by a stream interaction region."),
+    StormEvent("2023-02-27", "February 2023 storm", dt.date(2023, 2, 26), dt.date(2023, 3, 2),
+               0, "train", "Cycle 25 rise, modern instrumentation throughout."),
+    StormEvent("2023-03-24", "March 2023 storm", dt.date(2023, 3, 23), dt.date(2023, 3, 27),
+               0, "train", "Unexpected event from a stealth ejection, poorly forecast at the time."),
+    StormEvent("2024-03-24", "March 2024 storm", dt.date(2024, 3, 23), dt.date(2024, 3, 27),
+               0, "train", "Equinox event two months before the Gannon storm."),
 ]
 
 BY_KEY = {e.key: e for e in EVENTS}

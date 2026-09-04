@@ -14,7 +14,8 @@ import logging
 
 import numpy as np
 
-from setu.config import DBDT_THRESHOLDS_NT_PER_S, FORECAST_HORIZONS_MIN, QUANTILES
+from setu.config import (DBDT_THRESHOLDS_NT_PER_S, DEFAULT_TIME_BASE,
+                         FORECAST_HORIZONS_MIN, QUANTILES)
 from setu.data.storms import get_event
 from setu.decision.policy import PolicyOptimiser
 from setu.decision.scenarios import build_scenarios
@@ -30,7 +31,8 @@ log = logging.getLogger(__name__)
 
 def replay(event_key: str, model: GICNet, scaler: Standardiser,
            observatory: str = "ABG", stride: int = 3, n_scenarios: int = 60,
-           plan_threshold: float = 0.25, horizon_index: int = 1) -> dict:
+           plan_threshold: float = 0.25, horizon_index: int = 1,
+           time_base: str = DEFAULT_TIME_BASE) -> dict:
     """Walk through one storm and record what the system would have said.
 
     Args:
@@ -52,7 +54,7 @@ def replay(event_key: str, model: GICNet, scaler: Standardiser,
         dashboard or plotted.
     """
     event = get_event(event_key)
-    features, target = event_frames(event, observatory)
+    features, target = event_frames(event, observatory, time_base)
     x, y_actual, stamps = windowed_samples(features, target, model.window)
     if len(x) == 0:
         raise RuntimeError(f"no usable samples for {event_key} at {observatory}")
@@ -104,6 +106,7 @@ def replay(event_key: str, model: GICNet, scaler: Standardiser,
         steps.append(record)
 
     return {
+        "time_base": time_base,
         "event": {"key": event.key, "name": event.name, "note": event.note,
                   "min_sym_h": event.min_sym_h, "role": event.role},
         "observatory": observatory,
