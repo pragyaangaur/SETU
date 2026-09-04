@@ -121,3 +121,28 @@ def test_no_lookahead_in_the_advection_delay():
     full = advection_delay_s(frame)
     truncated = advection_delay_s(frame.iloc[:100])
     assert np.allclose(full.iloc[:100].values, truncated.values, equal_nan=True)
+
+
+def test_windowed_samples_returns_the_current_value_with_the_future_ones():
+    """The persistence baseline needs the value at the moment of the forecast, and
+    a caller that unpacks the wrong number of returns should fail loudly here
+    rather than in a replay hours later."""
+    import pandas as pd
+
+    from setu.ml.dataset import windowed_samples
+    from setu.ml.features import FEATURE_NAMES
+
+    rng = np.random.default_rng(5)
+    index = pd.date_range("2024-01-01", periods=200, freq="5min")
+    features = pd.DataFrame(
+        rng.normal(size=(200, len(FEATURE_NAMES))), index=index, columns=FEATURE_NAMES)
+    target = pd.Series(np.abs(rng.normal(size=200)), index=index)
+
+    x, y, now, stamps = windowed_samples(features, target, window=20,
+                                         horizons=(30, 60))
+    assert x.shape[0] == y.shape[0] == now.shape[0] == len(stamps)
+    assert y.shape[1] == 2
+    assert now.ndim == 1
+    # The current value must be the target at the window end, not at a horizon.
+    position = list(features.index).index(stamps[0])
+    assert now[0] == pytest.approx(target.iloc[position])

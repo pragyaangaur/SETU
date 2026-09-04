@@ -40,17 +40,43 @@ def horizon_order(horizons):
 
 
 def skill_table(report, threshold):
+    """Model scores next to the persistence baseline they have to beat."""
     horizons = report.get("thresholds", {}).get(threshold)
     if not horizons:
         return None
-    lines = ["| Horizon | Probability of detection | False alarm ratio | "
-             "Heidke skill score | Peirce score | Brier skill score |",
-             "| --- | --- | --- | --- | --- | --- |"]
+    lines = ["| Horizon | POD | POD, persistence | FAR | FAR, persistence | "
+             "Heidke skill | Heidke, persistence | Gain |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for name in horizon_order(horizons):
-        s = horizons[name]
+        e = horizons[name]
+        b = e.get("persistence", {})
+        gain = e["hss"] - b.get("hss", float("nan"))
         lines.append(
-            f"| {name.replace('min', ' minutes')} | {s['pod']:.2f} | {s['far']:.2f} | "
-            f"{s['hss']:.2f} | {s['pss']:.2f} | {s['brier_skill_score']:.2f} |")
+            f"| {name.replace('min', ' minutes')} | {e['pod']:.2f} | "
+            f"{b.get('pod', float('nan')):.2f} | {e['far']:.2f} | "
+            f"{b.get('far', float('nan')):.2f} | **{e['hss']:.2f}** | "
+            f"{b.get('hss', float('nan')):.2f} | {gain:+.2f} |")
+    return "\n".join(lines)
+
+
+def ablation_table(reports, threshold):
+    """The model with the physics constraint against the same model without it."""
+    if "l1" not in reports or "l1_nophysics" not in reports:
+        return None
+    with_physics = reports["l1"].get("thresholds", {}).get(threshold, {})
+    without = reports["l1_nophysics"].get("thresholds", {}).get(threshold, {})
+    if not with_physics or not without:
+        return None
+    lines = ["| Horizon | Heidke skill, constraint on | Heidke skill, constraint off | "
+             "POD on | POD off |",
+             "| --- | --- | --- | --- | --- |"]
+    for name in horizon_order(with_physics):
+        a = with_physics[name]
+        b = without.get(name)
+        if not b:
+            continue
+        lines.append(f"| {name.replace('min', ' minutes')} | {a['hss']:.2f} | "
+                     f"{b['hss']:.2f} | {a['pod']:.2f} | {b['pod']:.2f} |")
     return "\n".join(lines)
 
 
@@ -153,6 +179,16 @@ def main():
             skill_table(primary, lowest) or "",
             "",
         ]
+        parts += [
+            "Persistence is the baseline every space weather forecast has to beat. "
+            "It is free, it needs no model, and it says the ground will do at the "
+            "horizon whatever it is doing now. It is handed the ground measurement "
+            "as it stands when the forecast is made, which an operator genuinely "
+            "has, and it alarms whenever that is already above the threshold. The "
+            "gain column is what the model adds over it, and it grows with horizon, "
+            "which is the shape it should have.",
+            "",
+        ]
         comparison = comparison_table(reports, lowest)
         if comparison:
             parts += [
@@ -169,12 +205,48 @@ def main():
             ]
 
     if len(thresholds) > 1:
+        severe = thresholds[1]
         parts += [
-            f"## At the higher {thresholds[1]} nT per second level",
+            f"## At the higher {severe} nT per second level",
             "",
-            skill_table(primary, thresholds[1]) or "",
+            "This level is rare, so both the model and the baseline score much lower "
+            "here. The model beats persistence by a far wider margin than it does at "
+            "the common level, which is what a model is for.",
+            "",
+            skill_table(primary, severe) or "",
             "",
         ]
+        for label, level in (("the common", lowest), ("the severe", severe)):
+            table = ablation_table(reports, level)
+            if table is None:
+                continue
+            parts += [
+                f"### Does the physics constraint earn its place, at {label} level",
+                "",
+                table,
+                "",
+            ]
+        if ablation_table(reports, severe):
+            parts += [
+                "The same network, the same data, and the same settings, trained "
+                "once with the monotonicity constraint and once without it. At the "
+                "common level the two are close. At the severe level the "
+                "unconstrained model scores zero at every horizon, meaning it never "
+                "raises a severe alarm at all, while the constrained one keeps real "
+                "skill.",
+                "",
+                "That is where a physics constraint is supposed to help. Severe "
+                "minutes are rare, so there is little data to learn them from, and "
+                "an unconstrained fit takes the safe option of never predicting one. "
+                "The constraint forbids the forecast from falling when the energy "
+                "input rises, which carries the model into a part of the range the "
+                "data barely covers.",
+                "",
+                "One caveat belongs with this. Both runs are single seeds. The gap at "
+                "the severe level is far too large to be run to run noise, and the "
+                "near tie at the common level is small enough that it could be.",
+                "",
+            ]
 
     coverage = coverage_table(primary)
     if coverage:

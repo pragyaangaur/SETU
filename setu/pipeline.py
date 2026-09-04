@@ -58,7 +58,7 @@ def replay(event_key: str, model: GICNet, scaler: Standardiser,
     """
     event = get_event(event_key)
     features, target = event_frames(event, observatory, time_base)
-    x, y_actual, stamps = windowed_samples(features, target, model.window)
+    x, y_actual, y_now, stamps = windowed_samples(features, target, model.window)
     if len(x) == 0:
         raise RuntimeError(f"no usable samples for {event_key} at {observatory}")
 
@@ -94,6 +94,10 @@ def replay(event_key: str, model: GICNet, scaler: Standardiser,
         record = {
             "time": str(stamps[i]),
             "observed_dbdt": float(y_actual[i, horizon_index]),
+            # What the ground was doing when the forecast was issued. This is the
+            # persistence forecast, carried through so the console can show what
+            # the model is being compared against.
+            "current_dbdt": float(y_now[i]),
             "forecast_quantiles": [float(v) for v in row],
             "probability": probability,
             "peak_per_phase_amp": float(result.per_phase_per_unit.max()),
