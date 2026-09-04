@@ -75,7 +75,9 @@ def cmd_train(args):
                         window=args.window, batch_size=args.batch_size,
                         physics_weight=args.physics_weight,
                         physics_every=args.physics_every,
-                        tail_weight=args.tail_weight, time_base=args.time_base)
+                        tail_weight=args.tail_weight, time_base=args.time_base,
+                        dropout=args.dropout, weight_decay=args.weight_decay,
+                        input_noise=args.input_noise)
     summary = {k: v for k, v in report.items()
                if k not in ("history", "thresholds")}
     print(json.dumps(summary, indent=2, default=float))
@@ -292,8 +294,11 @@ def build_parser():
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("train", help="fit the forecast network on real storm data")
-    p.add_argument("--epochs", type=int, default=20)
-    p.add_argument("--channels", type=int, default=32)
+    p.add_argument("--epochs", type=int, default=14)
+    p.add_argument("--channels", type=int, default=24)
+    p.add_argument("--dropout", type=float, default=0.25)
+    p.add_argument("--weight-decay", type=float, default=1.0e-4)
+    p.add_argument("--input-noise", type=float, default=0.05)
     p.add_argument("--window", type=int, default=96)
     p.add_argument("--batch-size", type=int, default=96)
     p.add_argument("--physics-weight", type=float, default=0.5)

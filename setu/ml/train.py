@@ -73,10 +73,11 @@ def tail_weights(y_log, tail_weight=3.0, reference_quantile=0.85, reference=None
     return w / w.mean(), reference, spread
 
 
-def train(window=96, channels=32, epochs=20, batch_size=96, lr=2.0e-3,
+def train(window=96, channels=24, epochs=14, batch_size=96, lr=1.5e-3,
           physics_weight=0.5, physics_every=4, tail_weight=3.0, seed=0,
           observatories=("ABG", "HYB"), validation_fraction=0.2,
-          time_base=DEFAULT_TIME_BASE, verbose=True):
+          time_base=DEFAULT_TIME_BASE, dropout=0.25, weight_decay=1.0e-4,
+          input_noise=0.05, verbose=True):
     """Build the data, fit the model, and return the model with its scores.
 
     Args:
@@ -89,6 +90,17 @@ def train(window=96, channels=32, epochs=20, batch_size=96, lr=2.0e-3,
         tail_weight: Strength of the weighting toward disturbed minutes. Zero turns
             it off, which reproduces the earlier behaviour.
         time_base: ``l1`` or ``bowshock``. See ``setu.ml.dataset.event_frames``.
+        dropout: Dropout rate inside every residual block and before the head.
+        weight_decay: Decoupled weight decay applied by the optimiser.
+        input_noise: Standard deviation of the Gaussian noise added to the inputs
+            during training, in standardised units.
+
+    The last three arguments exist because of a real failure. Consecutive training
+    windows overlap by all but one step, so forty two thousand samples carry only a
+    few thousand independent windows worth of information. An earlier run with
+    light regularisation drove the training loss down while the validation loss
+    rose from the first epoch, which is memorisation of individual storms rather
+    than learning. The defaults here are the settings that stopped it.
     """
     from setu.ml.features import FEATURE_NAMES
 
@@ -134,8 +146,9 @@ def train(window=96, channels=32, epochs=20, batch_size=96, lr=2.0e-3,
         log.info("tail weighting: %.1f to %.1f across the training targets",
                  float(weights_tr.min()), float(weights_tr.max()))
 
-    model = GICNet(n_features=x_tr.shape[1], channels=channels, window=window, seed=seed)
-    optimiser = Adam(model.parameters(), lr=lr, weight_decay=1e-5, clip=1.0)
+    model = GICNet(n_features=x_tr.shape[1], channels=channels, window=window,
+                   dropout=dropout, seed=seed)
+    optimiser = Adam(model.parameters(), lr=lr, weight_decay=weight_decay, clip=1.0)
     constrained = [FEATURE_NAMES.index(c) for c in CONSTRAINED_FEATURES]
 
     history = []
@@ -152,6 +165,14 @@ def train(window=96, channels=32, epochs=20, batch_size=96, lr=2.0e-3,
         for step in range(steps):
             idx = order[step * batch_size: (step + 1) * batch_size]
             xb, yb, wb = x_tr[idx], y_tr[idx], weights_tr[idx]
+
+            # A small jitter on the inputs. Neighbouring windows are almost the
+            # same array, so without it the network can memorise individual
+            # windows. The scale is in standardised units, so five percent of a
+            # standard deviation is well below the measurement noise already in
+            # the solar wind record.
+            if input_noise > 0:
+                xb = xb + rng.normal(0.0, input_noise, xb.shape)
 
             model.zero_grad()
             pred = model.forward(xb, training=True)
@@ -187,6 +208,11 @@ def train(window=96, channels=32, epochs=20, batch_size=96, lr=2.0e-3,
     report["history"] = history
     report["time_base"] = time_base
     report["tail_weight"] = tail_weight
+    report["best_epoch"] = int(min(history, key=lambda h: h["validation"])["epoch"])
+    report["settings"] = {"channels": channels, "dropout": dropout,
+                          "weight_decay": weight_decay, "input_noise": input_noise,
+                          "learning_rate": lr, "batch_size": batch_size,
+                          "window_steps": window}
     report["training_seconds"] = round(time.time() - t0, 1)
     report["parameters"] = int(sum(v.size for v in model.parameters().values()))
     report["receptive_field_minutes"] = model.receptive_field * INPUT_CADENCE_MIN
