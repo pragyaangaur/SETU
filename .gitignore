@@ -16,3 +16,13 @@ data/cache/
 
 # The trained weights are small and are kept in the repository, so that anyone can
 # replay a storm without spending an hour retraining first.
+
+# Correspondence and working notes. These carry names, contact details, the
+# competition this was built for, and context about other work, none of which
+# belongs in a public repository. The technical gaps they exist to close are
+# described in the README instead.
+outreach/
+AGENTS.md
+NOTES.md
+notes/
+*.private.md
