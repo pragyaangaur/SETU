@@ -213,21 +213,39 @@ def train(window=96, channels=24, epochs=14, batch_size=96, lr=1.5e-3,
     # The calibration map is fitted on validation data only. Fitting it on the test
     # storms would make every calibration number in the report meaningless, which
     # is the whole reason the report exists.
-    calibrator = QuantileCalibrator(QUANTILES)
-    va_raw = predict_in_batches(model, x_va)
-    calibrator.fit(va_raw, y_va)
+    # The calibration map is fitted on part of the validation set and judged on the
+    # rest of it. An earlier version fitted and judged on the same data, which made
+    # the map look almost perfect, because a map fitted to a set will always match
+    # that set. It scored 0.0001 there and 0.053 on the held out storms, against
+    # 0.026 for doing nothing at all. Splitting the check off removes the illusion.
+    #
+    # The split is by whole storm again, for the same reason the outer split is.
+    validation_tags = sorted(set(str(t) for t in train_block["tag"][is_val]))
+    rng.shuffle(validation_tags)
+    fit_tags = set(validation_tags[: max(1, len(validation_tags) // 2)])
+    is_fit = np.array([str(t) in fit_tags for t in train_block["tag"][is_val]])
 
-    # Whether to use the map at all is decided on validation, not asserted. The
-    # decision layer only ever reads the upper part of the distribution, so the
-    # comparison is made over those levels alone. A correction that improves the
-    # whole curve while making the operational band worse is not an improvement.
-    band_raw = coverage_error(va_raw, y_va, QUANTILES, minimum_level=OPERATIONAL_LEVEL)
-    band_calibrated = coverage_error(calibrator.calibrate(va_raw), y_va, QUANTILES,
-                                     minimum_level=OPERATIONAL_LEVEL)
-    use_calibration = band_calibrated <= band_raw
+    va_raw = predict_in_batches(model, x_va)
+    calibrator = QuantileCalibrator(QUANTILES)
+    calibrator.fit(va_raw[is_fit], y_va[is_fit])
+
+    # The decision layer only ever reads the upper part of the distribution, since
+    # it asks for the probability of passing a threshold. A correction that improves
+    # the whole curve while making that band worse is not an improvement, so the
+    # comparison is made over those levels alone.
+    check_raw = va_raw[~is_fit]
+    check_target = y_va[~is_fit]
+    band_raw = coverage_error(check_raw, check_target, QUANTILES,
+                              minimum_level=OPERATIONAL_LEVEL)
+    band_calibrated = coverage_error(calibrator.calibrate(check_raw), check_target,
+                                     QUANTILES, minimum_level=OPERATIONAL_LEVEL)
+    use_calibration = band_calibrated < band_raw
     if verbose:
-        log.info("validation coverage error above level %.2f: raw %.4f, calibrated "
-                 "%.4f, using %s", OPERATIONAL_LEVEL, band_raw, band_calibrated,
+        log.info("calibration fitted on %d storms and checked on %d others",
+                 len(fit_tags), len(validation_tags) - len(fit_tags))
+        log.info("coverage error above level %.2f on the check storms: raw %.4f, "
+                 "calibrated %.4f, using %s", OPERATIONAL_LEVEL, band_raw,
+                 band_calibrated,
                  "the calibrated output" if use_calibration else "the raw output")
     if not use_calibration:
         calibrator = None
@@ -241,8 +259,9 @@ def train(window=96, channels=24, epochs=14, batch_size=96, lr=1.5e-3,
     report["calibration"] = {
         "applied": calibrator is not None,
         "operational_level": OPERATIONAL_LEVEL,
-        "validation_band_error_raw": band_raw,
-        "validation_band_error_calibrated": band_calibrated,
+        "check_band_error_raw": band_raw,
+        "check_band_error_calibrated": band_calibrated,
+        "fitted_on_storms": sorted(fit_tags),
         "requested_levels": list(QUANTILES),
         "raw_levels": ([calibrator.raw_level(q) for q in QUANTILES]
                        if calibrator is not None else None),
