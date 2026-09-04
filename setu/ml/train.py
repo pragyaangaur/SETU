@@ -32,7 +32,8 @@ log = logging.getLogger(__name__)
 CONSTRAINED_FEATURES = ("newell", "kan_lee", "bs")
 
 
-def tail_weights(y_log, tail_weight=3.0, reference_quantile=0.85):
+def tail_weights(y_log, tail_weight=3.0, reference_quantile=0.85, reference=None,
+                 spread=None):
     """Per sample weights that pull the fit toward the disturbed minutes.
 
     The first version of this model was scored on two storms larger than anything
@@ -54,15 +55,22 @@ def tail_weights(y_log, tail_weight=3.0, reference_quantile=0.85):
         y_log: Training targets in log space, of shape (samples, horizons).
         tail_weight: How much extra weight the largest observed target receives.
         reference_quantile: Where the weighting starts to rise.
+        reference: Fixed threshold to use instead of a quantile of ``y_log``. Pass
+            the training value when weighting a validation set, so that the two are
+            scored on the same scale.
+        spread: Fixed spread to use instead of one derived from ``y_log``.
 
     Returns:
-        Weights of the same shape as ``y_log``, averaging one.
+        Weights of the same shape as ``y_log``, and the reference and spread used,
+        so that the same weighting can be reproduced on another set.
     """
     y = np.asarray(y_log, dtype=float)
-    reference = np.quantile(y, reference_quantile)
-    spread = max(float(y.max() - reference), 1e-6)
+    if reference is None:
+        reference = float(np.quantile(y, reference_quantile))
+    if spread is None:
+        spread = max(float(y.max() - reference), 1e-6)
     w = 1.0 + tail_weight * np.clip((y - reference) / spread, 0.0, None)
-    return w / w.mean()
+    return w / w.mean(), reference, spread
 
 
 def train(window=96, channels=32, epochs=20, batch_size=96, lr=2.0e-3,
@@ -106,8 +114,18 @@ def train(window=96, channels=32, epochs=20, batch_size=96, lr=2.0e-3,
     x_va, y_va = train_block["x"][is_val], train_block["y"][is_val]
     x_te, y_te = test_block["x"], test_block["y"]
 
-    weights_tr = (tail_weights(y_tr, tail_weight) if tail_weight > 0
-                  else np.ones_like(y_tr))
+    # The validation set has to be scored the same way the training set is, or
+    # model selection works against the very change the weighting is making. An
+    # unweighted score falls when the upper quantiles are pulled down, which is the
+    # opposite of what is wanted, so the reference and the spread are fitted on the
+    # training targets and then reused on the validation targets unchanged.
+    if tail_weight > 0:
+        weights_tr, reference, spread = tail_weights(y_tr, tail_weight)
+        weights_va, _, _ = tail_weights(y_va, tail_weight, reference=reference,
+                                        spread=spread)
+    else:
+        weights_tr = np.ones_like(y_tr)
+        weights_va = np.ones_like(y_va)
 
     if verbose:
         log.info("time base: %s", time_base)
@@ -147,7 +165,7 @@ def train(window=96, channels=32, epochs=20, batch_size=96, lr=2.0e-3,
             running += loss
 
         val_pred = predict_in_batches(model, x_va)
-        val_loss = pinball(val_pred, y_va, QUANTILES)
+        val_loss = pinball(val_pred, y_va, QUANTILES, weights=weights_va)
         cover = coverage(val_pred, y_va, QUANTILES)
         history.append({"epoch": epoch, "train": running / steps,
                         "physics": running_phys / max(1, steps // physics_every),

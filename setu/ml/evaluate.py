@@ -108,11 +108,19 @@ def brier_skill_score(observed_event, probability) -> float:
     return float(1.0 - brier_score(o, probability) / reference)
 
 
-def pinball(pred_quantiles, target, quantiles) -> float:
-    """Mean quantile loss, which is a proper score for the whole distribution."""
+def pinball(pred_quantiles, target, quantiles, weights=None) -> float:
+    """Mean quantile loss, which is a proper score for the whole distribution.
+
+    Pass ``weights`` to score a set the same way the training loss scores it. Model
+    selection has to use the same weighting the optimiser is minimising, otherwise
+    it selects against the change the weighting is making.
+    """
     q = np.asarray(quantiles).reshape(1, 1, -1)
     diff = np.asarray(target)[:, :, None] - np.asarray(pred_quantiles)
-    return float(np.maximum(q * diff, (q - 1.0) * diff).mean())
+    loss = np.maximum(q * diff, (q - 1.0) * diff)
+    if weights is not None:
+        loss = loss * np.asarray(weights, dtype=float)[:, :, None]
+    return float(loss.mean())
 
 
 def coverage(pred_quantiles, target, quantiles) -> dict:
