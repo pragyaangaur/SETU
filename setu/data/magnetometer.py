@@ -147,3 +147,84 @@ def to_disturbance(frame: pd.DataFrame, window: str = "6h") -> pd.DataFrame:
             baseline = out[col].rolling(window, center=True, min_periods=1).median()
             out[col] = out[col] - baseline
     return out
+
+
+def fetch_recent(code: str, hours: int = 6, timeout: int = 60) -> pd.DataFrame:
+    """Download the last few hours of one minute data for one observatory.
+
+    This is the near real time counterpart of :func:`fetch_observatory`. The
+    service publishes reported data within a few minutes of the minute it covers,
+    which is what makes it possible to check a forecast against the ground while
+    the forecast is still recent.
+
+    Nothing is cached, because a cache would freeze the record at the moment it was
+    first written and this function exists to see what has happened since.
+
+    Args:
+        code: IAGA three letter code.
+        hours: How far back to ask for. The service works in whole days, so two
+            days are requested when the window crosses midnight.
+
+    Returns:
+        A frame of the last ``hours`` of one minute field values, with the fill
+        values removed and the empty tail of the current day dropped. Minutes the
+        observatory has not reported yet are simply absent.
+    """
+    now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+    start_day = (now - dt.timedelta(hours=hours)).date()
+    days = (now.date() - start_day).days + 1
+
+    params = {
+        "Request": "GetData",
+        "format": "iaga2002",
+        "testObsys": "0",
+        "observatoryIagaCode": code,
+        "samplesPerDay": "1440",
+        "publicationState": "Best available",
+        "dataStartDate": start_day.isoformat(),
+        "dataDuration": str(days),
+    }
+    resp = requests.get(SERVICE_URL, params=params, timeout=timeout)
+    resp.raise_for_status()
+    frame = _parse_iaga2002(resp.text)
+    frame = frame.dropna(subset=["bx", "by"])
+    return frame[frame.index >= now - dt.timedelta(hours=hours)]
+
+
+def first_reporting(codes=("ABG", "HYB"), hours: int = 6, min_rows: int = 60,
+                    max_age_min: int = 120):
+    """Return whichever Indian observatory is actually reporting right now.
+
+    Which station is live is not fixed. Alibag and Hyderabad both publish through
+    the same service and either one can fall silent for days, so the caller is
+    given whichever is currently up rather than one chosen in advance.
+
+    Row count alone is not enough to decide that. A station that stopped reporting
+    two days ago still returns a full day of good rows for the day before it
+    stopped, and an earlier version of this function accepted exactly that and
+    scored forecasts against a record that ended before they were issued. The last
+    minute in the record has to be recent as well, and of the stations that pass,
+    the freshest one wins.
+
+    Returns:
+        A pair of the code and its frame, or ``(None, None)`` if none report.
+    """
+    now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+    best = (None, None)
+    best_age = dt.timedelta(minutes=max_age_min)
+    for code in codes:
+        try:
+            frame = fetch_recent(code, hours=hours)
+        except Exception as exc:
+            log.warning("%s is not reachable: %s", code, exc)
+            continue
+        if len(frame) < min_rows:
+            log.warning("%s returned only %d usable minutes", code, len(frame))
+            continue
+        age = now - frame.index[-1].to_pydatetime()
+        if age > best_age:
+            log.warning("%s last reported %s, which is %.0f minutes ago",
+                        code, frame.index[-1], age.total_seconds() / 60.0)
+            continue
+        best, best_age = (code, frame), age
+    return best

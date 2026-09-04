@@ -1,11 +1,16 @@
 """Command line entry point for the whole system.
 
-Four commands cover everything the project does.
-
     python -m setu.cli train
     python -m setu.cli replay --event 2024-05-10
     python -m setu.cli placement --budget 8
+    python -m setu.cli live
+    python -m setu.cli nowcast
     python -m setu.cli benchmark
+
+The last two are the difference between a study and a service. ``live`` prints what
+the system says at this minute. ``nowcast`` writes that down before the outcome
+exists and comes back later to mark it right or wrong, which is what the unattended
+job runs every quarter of an hour.
 """
 
 import argparse
@@ -279,6 +284,60 @@ def cmd_live(args):
     print(f"\nwritten to {out}")
 
 
+def cmd_nowcast(args):
+    """Issue one forecast into the ledger and score every forecast that has come due.
+
+    This is the command the unattended service runs. Where ``live`` prints what the
+    system says at this minute and throws it away, this one writes it down before
+    the outcome exists and comes back later to mark it right or wrong. The score it
+    keeps is the only one in the project computed on data that did not exist when
+    the model was trained.
+    """
+    from setu import nowcast
+
+    model, scaler, calibrator = load_model()
+    outcome = nowcast.run(model, scaler, calibrator, n_scenarios=args.scenarios)
+    entry = outcome["entry"]
+    board = outcome["scoreboard"]
+
+    print(f"forecast issued at {entry['issued_at']} from {', '.join(entry['sources'])}")
+    ground = entry["persistence_dbdt"]
+    if ground is None:
+        print("  no Indian observatory is reporting, so no baseline this run")
+    else:
+        print(f"  ground now at {entry['observatory']}: {ground:.3f} nT/s")
+    for horizon in FORECAST_HORIZONS_MIN:
+        row = entry["horizons"][str(horizon)]
+        state = "ALARM" if row["alarm"] else "quiet"
+        print(f"  {horizon:3d} min: median {row['median']:.3f} nT/s   "
+              f"P(>0.1)={row['probability']['0.1']:.2f}   {state}")
+
+    action = entry["plan"]["actions"]
+    print(f"  recommendation: {action[0]['label'] if action else 'no action needed'}")
+
+    print(f"\nrecord: {board['forecasts_issued']} forecasts over "
+          f"{board['days_running']} days since {board['first_day']}, "
+          f"{board['horizon_forecasts_verified']} of them scored against the "
+          f"ground ({outcome['newly_scored']} new this run)")
+    print(f"  {board['forecasts_issued_live']} were written before the outcome "
+          f"existed, {board['forecasts_backfilled']} were replayed through the feed, "
+          f"and {board['awaiting_outcome']} are still waiting on theirs")
+    if board["quiet"]:
+        print("  the ground has not passed 0.1 nT/s since the ledger opened, so "
+              "there is nothing to score skill on yet")
+    else:
+        for horizon in FORECAST_HORIZONS_MIN:
+            block = board["horizons"][str(horizon)]
+            model_hss = block["model"]["hss"]
+            base_hss = block["persistence"]["hss"]
+            if model_hss is None:
+                continue
+            base = "n/a" if base_hss is None else f"{base_hss:.2f}"
+            print(f"  {horizon:3d} min: HSS {model_hss:.2f} against "
+                  f"persistence {base} over {block['model']['n']} scored minutes")
+    print(f"\nwritten to {outcome['path']}")
+
+
 def cmd_benchmark(args):
     """Report the standard benchmark cases, which is what a reviewer checks first."""
     network = Network()
@@ -369,6 +428,11 @@ def build_parser():
     p = sub.add_parser("live", help="run the whole chain on the solar wind right now")
     p.add_argument("--scenarios", type=int, default=60)
     p.set_defaults(func=cmd_live)
+
+    p = sub.add_parser("nowcast", help="issue a forecast into the ledger and score "
+                                       "the ones that have come due")
+    p.add_argument("--scenarios", type=int, default=60)
+    p.set_defaults(func=cmd_nowcast)
 
     p = sub.add_parser("benchmark", help="print the standard checks and export the network")
     p.set_defaults(func=cmd_benchmark)

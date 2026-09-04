@@ -1,0 +1,64 @@
+# The standing forecast service.
+#
+# Every quarter of an hour this issues a forecast from the solar wind as it stands
+# at that minute, writes it into the ledger before the outcome exists, and scores
+# every earlier forecast whose valid time has now passed against what the ground
+# magnetometer actually recorded. The ledger is committed back to the repository,
+# so the operator console served from GitHub Pages shows a record that grows on its
+# own and that nobody can edit after the fact.
+name: nowcast
+
+on:
+  schedule:
+    # Quarter past, half past, quarter to, and on the hour. GitHub runs scheduled
+    # jobs late when it is busy, and a missed run costs one row rather than
+    # breaking the ledger, so no catch up is attempted.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+# Only one run at a time. Two runs writing the ledger at once would race on the
+# commit, and the later forecast is the one worth keeping.
+concurrency:
+  group: nowcast
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      - name: Issue a forecast and score the ones that have come due
+        run: python -m setu.cli nowcast
+
+      - name: Commit the ledger
+        run: |
+          git config user.name "setu-nowcast"
+          git config user.email "setu-nowcast@users.noreply.github.com"
+          git add docs/data/ledger.json
+          if git diff --cached --quiet; then
+            echo "the ledger did not change, so there is nothing to commit"
+            exit 0
+          fi
+          git commit -m "nowcast: forecast issued at $(date -u '+%Y-%m-%d %H:%M') UTC"
+          # A scheduled run can start while another one is still pushing, so the
+          # local commit is rebased onto whatever landed first rather than forced.
+          for attempt in 1 2 3; do
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && \
+            git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            sleep 5
+          done
+          echo "could not push the ledger after three attempts"
+          exit 1

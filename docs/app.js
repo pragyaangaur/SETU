@@ -276,6 +276,109 @@
       " minutes in the median.</p>";
   }
 
+
+  /* ---------- the standing record ----------
+   *
+   * This is the only part of the console that is not a replay of a storm that has
+   * already been studied. The service writes a forecast into the ledger every
+   * quarter of an hour, before its outcome exists, and attaches what the ground
+   * actually did once the valid minute has passed.
+   *
+   * The file is fetched rather than read from the bundle, because the service
+   * commits it on its own schedule and the bundle is only rebuilt by hand. When
+   * the page is opened from the file system a browser will not allow the fetch, so
+   * the bundled copy is used and the panel says which one it is looking at.
+   */
+
+  function renderLedger(ledger, stale) {
+    var host = el("ledger");
+    if (!ledger || !ledger.scoreboard) {
+      host.innerHTML = '<p class="empty">No forecast record yet. Run ' +
+        "<code>python -m setu.cli nowcast</code> to open one.</p>";
+      return;
+    }
+    var board = ledger.scoreboard;
+    var latest = ledger.latest || {};
+    var horizons = ["30", "45", "60", "90"];
+
+    var alarm = horizons.some(function (h) {
+      return latest.horizons && latest.horizons[h] && latest.horizons[h].alarm;
+    });
+
+    var head =
+      '<div class="grid g3" style="margin-bottom:14px">' +
+      card(board.forecasts_issued.toLocaleString(),
+           "forecasts issued over " + board.days_running + " days, " +
+           board.forecasts_issued_live + " of them written before the outcome existed") +
+      card(board.horizon_forecasts_verified.toLocaleString(),
+           "of them scored against what the ground magnetometer actually recorded") +
+      card(alarm ? "ALARM" : "Quiet",
+           "state at " + (latest.issued_at || "?") + " UTC, from " +
+           ((latest.sources || []).join(", ") || "the operational monitor"),
+           alarm ? "var(--bad)" : "var(--good)") +
+      "</div>";
+
+    var rows = horizons.map(function (h) {
+      var b = board.horizons[h] || {};
+      var m = b.model, p = b.persistence;
+      if (!m || !m.n) {
+        return "<tr><td>" + h + " min</td><td class='num'>0</td>" +
+               "<td colspan='4' class='num'>nothing scored yet</td></tr>";
+      }
+      return "<tr><td>" + h + " min</td>" +
+        "<td class='num'>" + m.n.toLocaleString() + "</td>" +
+        "<td class='num'>" + b.events + "</td>" +
+        "<td class='num'>" + m.false_alarms + "</td>" +
+        "<td class='num'>" + p.false_alarms + "</td>" +
+        "<td class='num'>" + fmt(b.mean_absolute_error, 3) + "</td>" +
+        "<td class='num'>" + (m.hss === null ? "&mdash;" : fmt(m.hss, 2)) +
+          " / " + (p.hss === null ? "&mdash;" : fmt(p.hss, 2)) + "</td></tr>";
+    }).join("");
+
+    var table =
+      "<div class='scroll'><table><thead><tr>" +
+      "<th>Horizon</th><th>Minutes scored</th><th>Times the ground passed 0.1 nT/s</th>" +
+      "<th>False alarms, model</th><th>False alarms, persistence</th>" +
+      "<th>Mean error, nT/s</th><th>Heidke, model / persistence</th>" +
+      "</tr></thead><tbody>" + rows + "</tbody></table></div>";
+
+    var note = board.quiet
+      ? "The ground has not passed 0.1 nT per second once since this record opened, " +
+        "so there is no detection skill to report yet and the table shows what the " +
+        "system does in quiet conditions instead. That is the number an operator " +
+        "asks about first, because an alarm system that cries wolf through a quiet " +
+        "week will be switched off before the storm arrives."
+      : "Skill is shown against the persistence baseline on exactly the same minutes. " +
+        "Every row was written down before its outcome existed.";
+
+    var source = stale
+      ? "This page was opened from the file system, so it is showing the copy " +
+        "bundled at build time rather than the live one."
+      : "Updated by the service every quarter of an hour. Last written " +
+        (ledger.written_at || "").slice(0, 16) + " UTC.";
+
+    host.innerHTML = head + table +
+      '<p class="note">' + note + " " + source + "</p>" +
+      '<p class="note">' + (ledger.what_this_is || "") + "</p>";
+  }
+
+  function card(value, note, colour) {
+    return '<div class="card" style="background:var(--panel2)">' +
+      '<div class="kpi"' + (colour ? ' style="color:' + colour + '"' : "") + ">" +
+      value + "<small>" + note + "</small></div></div>";
+  }
+
+  function loadLedger() {
+    if (!window.fetch || location.protocol === "file:") {
+      renderLedger(DATA.ledger, true);
+      return;
+    }
+    fetch("data/ledger.json", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (live) { renderLedger(live, false); })
+      .catch(function () { renderLedger(DATA.ledger, true); });
+  }
+
   function renderLeadTime() {
     var host = el("leadtime");
     var r = state.replay;
@@ -337,6 +440,7 @@
     });
     renderPlacement();
     renderLive();
+    loadLedger();
     renderAll();
   }
 
