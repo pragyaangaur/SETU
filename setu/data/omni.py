@@ -52,7 +52,20 @@ COLUMNS = {
     "pressure": (27, 99.99),
     "ae_index": (37, 99999.0),
     "sym_h": (41, 99999.0),
+    # The shift the archive applied to move this measurement from the spacecraft
+    # to the bow shock nose, in second, and the position of the spacecraft that
+    # made it, in Earth radii. These are what make it possible to undo the shift.
+    "timeshift": (9, 999999.0),
+    "vx_gse": (22, 99999.9),
+    "sc_x_re": (31, 9999.0),
+    "sc_y_re": (32, 9999.0),
+    "sc_z_re": (33, 9999.0),
 }
+
+# A shift outside this range means the archive could not work out a sensible
+# propagation delay for that minute, so the row is dropped rather than trusted.
+MIN_TIMESHIFT_S = 300.0
+MAX_TIMESHIFT_S = 7200.0
 
 
 def _month_url(year: int, month: int) -> str:
@@ -108,6 +121,91 @@ def fetch_range(start: dt.date, end: dt.date, **kwargs) -> pd.DataFrame:
         joined.index < pd.Timestamp(end) + pd.Timedelta(days=1)
     )
     return joined.loc[mask]
+
+
+EARTH_RADIUS_KM = 6371.0
+
+
+def advection_delay_s(frame: pd.DataFrame) -> pd.Series:
+    """Travel time from the spacecraft to the bow shock, in second.
+
+    This is the plain advection estimate. The solar wind is taken to travel
+    straight down the Sun to Earth line at its measured speed, so the delay is the
+    distance divided by the speed. Both quantities are in the telemetry at the
+    moment it arrives, so this estimate needs nothing that a real time system would
+    not already have.
+
+    The archive publishes its own shift, which is computed from the orientation of
+    the phase front and is more accurate. That method needs a window of data around
+    each minute, so it looks slightly into the future of any given sample. The
+    difference between the two is about thirteen minutes in the median. This
+    project defaults to the advection estimate for that reason, and the archive
+    value stays available for comparison.
+    """
+    speed = frame["vx_gse"].abs().where(frame["vx_gse"].abs() > 100.0)
+    speed = speed.fillna(frame["speed"].where(frame["speed"] > 100.0))
+    distance_km = frame["sc_x_re"].abs() * EARTH_RADIUS_KM
+    return distance_km / speed
+
+
+def to_l1_time_base(frame: pd.DataFrame, method: str = "advection") -> pd.DataFrame:
+    """Move the record back onto the clock of the spacecraft that measured it.
+
+    This is the single most important function in the data layer, and the reason
+    is worth setting out fully.
+
+    OMNI publishes the solar wind against the time it reaches the nose of the bow
+    shock, not the time it was measured. That is the right convention for studying
+    what the magnetosphere did, and it is exactly the wrong convention for building
+    a warning system. Under it a shock front appears in the record at the same
+    instant it strikes the Earth, so a model trained on it has nothing to warn
+    about. The first version of this project did train on it, and the replay of the
+    May 2024 storm shows the model missing the sudden commencement by about forty
+    five minutes for precisely this reason.
+
+    The archive records the shift it applied, so it can be undone. Each row is
+    moved back by its own shift, which puts it at the moment the spacecraft at the
+    first Lagrange point actually saw it. A forecast horizon measured from that
+    moment is real warning time, and during the May 2024 storm it was worth between
+    thirty seven and forty eight minutes.
+
+    Rows whose shift is missing or outside a sensible range are dropped. The result
+    is resampled back onto a regular one minute grid, because the shift varies from
+    minute to minute and the shifted timestamps are neither evenly spaced nor
+    guaranteed to stay in order.
+
+    Args:
+        frame: A record on the bow shock time base, as returned by ``fetch_range``.
+        method: ``advection`` uses the delay implied by spacecraft position and
+            measured speed, which involves no lookahead. ``archive`` uses the shift
+            the archive itself applied, which is more accurate and slightly
+            acausal. The default is the honest one.
+    """
+    if method == "archive":
+        if "timeshift" not in frame:
+            raise ValueError("the frame has no timeshift column")
+        shift = frame["timeshift"]
+    elif method == "advection":
+        shift = advection_delay_s(frame)
+    else:
+        raise ValueError(f"unknown method {method!r}, use 'advection' or 'archive'")
+    usable = shift.between(MIN_TIMESHIFT_S, MAX_TIMESHIFT_S)
+    out = frame.loc[usable].copy()
+    out["applied_delay_s"] = shift.loc[usable]
+    if out.empty:
+        raise ValueError("no rows have a usable propagation delay")
+
+    observed_at = out.index - pd.to_timedelta(out["applied_delay_s"].values, unit="s")
+    out.index = pd.DatetimeIndex(observed_at, name="time")
+    out = out[~out.index.duplicated(keep="last")].sort_index()
+
+    # The shift varies from minute to minute, so the shifted stamps no longer land
+    # on whole minutes and about half the target minutes receive no source row.
+    # Averaging onto the grid and then bridging the one and two minute holes is
+    # safe here, because the source cadence was already one minute and nothing in
+    # the solar wind changes meaningfully inside that gap.
+    gridded = out.resample("1min").mean()
+    return gridded.interpolate(method="time", limit=3, limit_area="inside")
 
 
 def fill_gaps(frame: pd.DataFrame, limit_minutes: int = 30) -> pd.DataFrame:
