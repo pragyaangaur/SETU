@@ -26,13 +26,22 @@ CADENCE_S = 60.0  # every time series in this project is one minute cadence
 DBDT_THRESHOLDS_NT_PER_S = (0.1, 0.3, 1.0)
 
 # Forecast horizons in minutes, measured from the moment the spacecraft at the
-# first Lagrange point took the measurement. The solar wind takes between about
-# twenty five minutes and an hour and a half to cross that distance depending on
-# its speed, so a useful horizon has to reach past the arrival itself. The shortest
-# one here is deliberately shorter than a typical crossing, because a horizon the
-# wind has not yet arrived at is a real forecast too, and the model has to learn
-# when to stay quiet.
-FORECAST_HORIZONS_MIN = (45, 60, 90)
+# first Lagrange point took the measurement.
+#
+# The set has to straddle the propagation delay, and the reason is a hard physical
+# limit rather than a modelling choice. A disturbance can only be forecast from a
+# horizon shorter than the time it takes to arrive, because at any longer horizon
+# the disturbance had not yet reached the spacecraft when the forecast was issued.
+# During the fast solar wind of 10 May 2024 the delay was about thirty minutes, so
+# no horizon of forty five minutes or more could have caught that shock, and an
+# earlier version of this project used forty five as its shortest and missed it.
+#
+# The delay runs from about twenty five minutes to eighty depending on speed, so
+# the useful warning is short exactly when the storm is fast. Thirty minutes is
+# included to cover the fast cases, ninety to cover the slow ones, and the
+# propagation delay is given to the network as an input so it can tell which
+# situation it is in.
+FORECAST_HORIZONS_MIN = (30, 45, 60, 90)
 
 # Geometry of the solar wind monitor at the first Lagrange point.
 #

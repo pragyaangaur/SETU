@@ -112,6 +112,9 @@ def replay(event_key: str, model: GICNet, scaler: Standardiser,
 
     return {
         "time_base": time_base,
+        "time_meaning": ("every timestamp is when the spacecraft took the "
+                         "measurement, and the observed value beside it is what the "
+                         f"ground did {horizon} minutes later"),
         "event": {"key": event.key, "name": event.name, "note": event.note,
                   "min_sym_h": event.min_sym_h, "role": event.role},
         "observatory": observatory,
@@ -155,7 +158,7 @@ def episodes(exceeded, gap_steps=24):
 
 
 def lead_time_summary(replayed: dict, threshold: float = 0.1,
-                      probability_cut: float = 0.4, gap_steps: int = 24) -> dict:
+                      probability_cut: float = None, gap_steps: int = 24) -> dict:
     """How much warning the system gave before each disturbed period.
 
     The first number an operator asks for is not a skill score. It is how many
@@ -167,7 +170,14 @@ def lead_time_summary(replayed: dict, threshold: float = 0.1,
     found, and the warning is the time from that alarm to the start of the period,
     plus the forecast horizon itself. An episode with no standing alarm is recorded
     as a miss, and misses are reported alongside the warnings rather than dropped.
+
+    The probability cut has to be the one chosen on validation and carried through
+    unchanged. An earlier version of this function used a hard coded 0.4 while
+    validation had chosen 0.14, so it reported that nothing was ever warned when in
+    fact four disturbed minutes in five were being caught.
     """
+    if probability_cut is None:
+        probability_cut = replayed.get("probability_cut", 0.15)
     steps = replayed["steps"]
     if len(steps) < 2:
         return {"threshold": threshold, "note": "the replay is too short to score"}

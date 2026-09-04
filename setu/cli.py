@@ -97,10 +97,33 @@ def cmd_train(args):
                   f"PSS {scores['pss']:.3f}")
 
 
+def probability_cut_for(horizon_minutes, threshold="0.1", default=0.15):
+    """The alarm cut chosen on validation during training, for one horizon.
+
+    Carrying this through rather than picking a fresh number is what makes the
+    warning statistics describe the same system the skill scores describe.
+    """
+    for tag in (TIME_BASE, None):
+        path = ARTIFACT_DIR / (f"training_report_{tag}.json" if tag
+                               else "training_report.json")
+        if not path.exists():
+            continue
+        report = json.loads(path.read_text())
+        entry = report.get("thresholds", {}).get(threshold, {}).get(f"{horizon_minutes}min")
+        if entry and "probability_cut" in entry:
+            return float(entry["probability_cut"])
+    return default
+
+
 def cmd_replay(args):
     model, scaler, calibrator = load_model()
     result = replay(args.event, model, scaler, observatory=args.observatory,
-                    stride=args.stride, time_base=TIME_BASE, calibrator=calibrator)
+                    stride=args.stride, time_base=TIME_BASE, calibrator=calibrator,
+                    horizon_index=args.horizon_index)
+    # The alarm threshold has to be the one training chose on validation, not a
+    # number picked here, or the warning statistics describe a different system
+    # from the one that was scored.
+    result["probability_cut"] = probability_cut_for(result["horizon_minutes"])
     result["lead_time"] = {
         str(t): lead_time_summary(result, t) for t in (0.1, 0.3)
     }
@@ -327,6 +350,10 @@ def build_parser():
     p.add_argument("--event", default="2024-05-10")
     p.add_argument("--observatory", default="ABG")
     p.add_argument("--stride", type=int, default=3)
+    p.add_argument("--horizon-index", type=int, default=0,
+                   help="which forecast horizon to drive the replay with, "
+                        "defaulting to the shortest because it is the only one "
+                        "inside the propagation delay during a fast storm")
     p.set_defaults(func=cmd_replay)
 
     p = sub.add_parser("placement", help="site neutral blocking devices")
