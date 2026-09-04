@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from setu.config import EARTH_RADIUS_KM, PHASE_FRONT_CORRECTION
 from setu.data.omni import (MAX_TIMESHIFT_S, MIN_TIMESHIFT_S, advection_delay_s,
                             to_l1_time_base)
 from setu.ml.features import FEATURE_NAMES, Standardiser, build_features
@@ -50,7 +51,7 @@ def test_advection_time_base_uses_position_over_speed():
     slow = delay.iloc[0]
     fast = delay.iloc[-1]
     assert fast < slow
-    expected_slow = 235.0 * 6371.0 / 400.0
+    expected_slow = 235.0 * EARTH_RADIUS_KM * PHASE_FRONT_CORRECTION / 400.0
     assert slow == pytest.approx(expected_slow, rel=1e-6)
 
 
@@ -102,6 +103,16 @@ def test_standardiser_fits_and_inverts_scale():
     assert np.nanmax(np.abs(np.nanmean(scaled, axis=0))) < 1e-8
     restored = Standardiser.from_state(scaler.state())
     assert np.allclose(restored.transform(values), scaled, equal_nan=True)
+
+
+def test_the_phase_front_correction_shortens_the_delay():
+    """A tilted front reaches the Earth sooner than a flat one, so the correction
+    has to be below one and the delay has to come out shorter than the plain
+    distance over speed value."""
+    assert 0.8 < PHASE_FRONT_CORRECTION < 1.0
+    frame, _ = synthetic_wind()
+    plain = 235.0 * EARTH_RADIUS_KM / 400.0
+    assert advection_delay_s(frame).iloc[0] < plain
 
 
 def test_no_lookahead_in_the_advection_delay():

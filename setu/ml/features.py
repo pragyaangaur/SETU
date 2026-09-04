@@ -29,11 +29,11 @@ DERIVED_INPUTS = [
     "propagation_delay_min",
 ]
 
-# Distance from the spacecraft to the Earth when the position is not in the record.
-# The first Lagrange point sits about 1.5 million kilometres sunward, which is
-# roughly 235 Earth radii.
-DEFAULT_SC_DISTANCE_RE = 235.0
-EARTH_RADIUS_KM = 6371.0
+from setu.config import EARTH_RADIUS_KM, L1_DISTANCE_RE, PHASE_FRONT_CORRECTION
+
+# Kept under the old name because the live feed imports it, and it is the distance
+# used whenever the record does not carry a measured spacecraft position.
+DEFAULT_SC_DISTANCE_RE = L1_DISTANCE_RE
 
 FEATURE_NAMES = RAW_INPUTS + DERIVED_INPUTS
 
@@ -130,9 +130,10 @@ def build_features(solar_wind: pd.DataFrame) -> pd.DataFrame:
     # from the speed on its own, and the delay is what separates a horizon that has
     # to stay quiet from one that has to raise the alarm.
     distance_re = (solar_wind["sc_x_re"].abs()
-                   if "sc_x_re" in solar_wind else DEFAULT_SC_DISTANCE_RE)
+                   if "sc_x_re" in solar_wind else L1_DISTANCE_RE)
     travel_speed = f["speed"].where(f["speed"] > 100.0)
-    f["propagation_delay_min"] = (distance_re * EARTH_RADIUS_KM / travel_speed) / 60.0
+    f["propagation_delay_min"] = (
+        distance_re * EARTH_RADIUS_KM * PHASE_FRONT_CORRECTION / travel_speed) / 60.0
 
     return f[FEATURE_NAMES]
 

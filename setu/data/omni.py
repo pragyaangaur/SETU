@@ -34,7 +34,8 @@ import numpy as np
 import pandas as pd
 import requests
 
-from setu.config import RAW_DIR
+from setu.config import (EARTH_RADIUS_KM, L1_DISTANCE_RE,
+                         PHASE_FRONT_CORRECTION, RAW_DIR)
 
 log = logging.getLogger(__name__)
 
@@ -123,9 +124,6 @@ def fetch_range(start: dt.date, end: dt.date, **kwargs) -> pd.DataFrame:
     return joined.loc[mask]
 
 
-EARTH_RADIUS_KM = 6371.0
-
-
 def advection_delay_s(frame: pd.DataFrame) -> pd.Series:
     """Travel time from the spacecraft to the bow shock, in second.
 
@@ -136,15 +134,18 @@ def advection_delay_s(frame: pd.DataFrame) -> pd.Series:
     not already have.
 
     The archive publishes its own shift, which is computed from the orientation of
-    the phase front and is more accurate. That method needs a window of data around
-    each minute, so it looks slightly into the future of any given sample. The
-    difference between the two is about thirteen minutes in the median. This
-    project defaults to the advection estimate for that reason, and the archive
-    value stays available for comparison.
+    the phase front. That method needs a window of data around each minute, so it
+    looks slightly into the future of any given sample and cannot be used in a
+    warning system. It is more accurate, and a plain radial estimate runs long by
+    about five percent because a tilted front reaches the Earth sooner than a flat
+    one would. That five percent is folded in here as a fixed correction, measured
+    once against the whole archive, which costs nothing at run time and needs no
+    knowledge of the future.
     """
     speed = frame["vx_gse"].abs().where(frame["vx_gse"].abs() > 100.0)
     speed = speed.fillna(frame["speed"].where(frame["speed"] > 100.0))
-    distance_km = frame["sc_x_re"].abs() * EARTH_RADIUS_KM
+    distance_re = frame["sc_x_re"].abs() if "sc_x_re" in frame else L1_DISTANCE_RE
+    distance_km = distance_re * EARTH_RADIUS_KM * PHASE_FRONT_CORRECTION
     return distance_km / speed
 
 

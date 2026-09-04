@@ -34,6 +34,27 @@ DBDT_THRESHOLDS_NT_PER_S = (0.1, 0.3, 1.0)
 # when to stay quiet.
 FORECAST_HORIZONS_MIN = (45, 60, 90)
 
+# Geometry of the solar wind monitor at the first Lagrange point.
+#
+# EARTH_RADIUS_KM is the usual value. L1_DISTANCE_RE is the median sunward
+# distance of the monitoring spacecraft, measured across 1.05 million minutes of
+# the OMNI archive after excluding the minutes when the reporting spacecraft was
+# not near the first Lagrange point.
+#
+# PHASE_FRONT_CORRECTION is the part worth explaining. Treating the solar wind as
+# travelling straight down the Sun to Earth line overestimates the travel time,
+# because the real front of a disturbance is tilted and reaches the Earth sooner
+# than a flat front would. The archive computes the true delay from the
+# orientation of that front, and comparing the two over the same 1.03 million
+# minutes gives a ratio of 0.953. Applying it turns a plain distance over speed
+# estimate into one that matches the archive in the median while still using
+# nothing a real time system would not already have.
+#
+# Recompute both with scripts/calibrate_delay.py if the archive is extended.
+EARTH_RADIUS_KM = 6371.0
+L1_DISTANCE_RE = 225.7
+PHASE_FRONT_CORRECTION = 0.953
+
 # Which clock the solar wind is placed on. The bow shock base is what the OMNI
 # archive publishes and it leaves no warning time at all for a shock arrival. The
 # L1 base is the clock of the spacecraft and it is what a warning system has.
