@@ -35,3 +35,6 @@ presentation/
 
 # The personal to do list for the competition, which is not part of the system.
 CHECKLIST.md
+
+# Local editor and tooling config
+.claude/
