@@ -4,6 +4,10 @@ SETU is a forecasting and decision support system for geomagnetically induced cu
 
 This repository is a working artefact, so every layer described below is implemented and runs. Nothing here is a mock.
 
+## Recognition
+
+SETU was runner up at the East and North East regional final of the IET India Scholarship Award, run by the Institution of Engineering and Technology. The final was held at the University of Calcutta on 12 September 2026.
+
 ## The problem
 
 A geomagnetic storm does not damage a power grid the way lightning does. The storm changes the magnetic field at the surface of the Earth, that changing field induces an electric field in the crust, and the electric field drives a slow quasi-DC current up the neutrals of grounded transformers. A transformer carrying that current saturates on one half of the cycle, which makes it draw large amounts of reactive power, inject harmonics into the network, and heat its own windings. The grid then fails through voltage collapse and protection misoperation. Hydro-Quebec lost its whole system in ninety two seconds this way in March 1989.
