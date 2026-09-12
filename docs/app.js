@@ -280,9 +280,10 @@
   /* ---------- the standing record ----------
    *
    * This is the only part of the console that is not a replay of a storm that has
-   * already been studied. The service writes a forecast into the ledger every
-   * quarter of an hour, before its outcome exists, and attaches what the ground
-   * actually did once the valid minute has passed.
+   * already been studied. The service writes a forecast into the ledger every few
+   * hours, before its outcome exists, and attaches what the ground actually did
+   * once the valid minute has passed. It is scheduled every quarter of an hour, and
+   * GitHub starts free scheduled jobs late, which is why the real gap is longer.
    *
    * The file is fetched rather than read from the bundle, because the service
    * commits it on its own schedule and the bundle is only rebuilt by hand. When
@@ -354,7 +355,7 @@
     var source = stale
       ? "This page was opened from the file system, so it is showing the copy " +
         "bundled at build time rather than the live one."
-      : "Updated by the service every quarter of an hour. Last written " +
+      : "Updated by the service every few hours. Last written " +
         (ledger.written_at || "").slice(0, 16) + " UTC.";
 
     host.innerHTML = head + table +

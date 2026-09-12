@@ -10,7 +10,8 @@
 The last two are the difference between a study and a service. ``live`` prints what
 the system says at this minute. ``nowcast`` writes that down before the outcome
 exists and comes back later to mark it right or wrong, which is what the unattended
-job runs every quarter of an hour.
+job runs. The job is scheduled every quarter of an hour and in practice runs every
+three to four hours, because GitHub starts free scheduled jobs late.
 """
 
 import argparse

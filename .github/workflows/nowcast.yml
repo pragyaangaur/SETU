@@ -1,6 +1,6 @@
 # The standing forecast service.
 #
-# Every quarter of an hour this issues a forecast from the solar wind as it stands
+# Each run issues a forecast from the solar wind as it stands
 # at that minute, writes it into the ledger before the outcome exists, and scores
 # every earlier forecast whose valid time has now passed against what the ground
 # magnetometer actually recorded. The ledger is committed back to the repository,
