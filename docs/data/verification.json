@@ -705,9 +705,82 @@
    }
   },
   "2026-09-12": {
-   "live": 3,
+   "live": 5,
    "backfilled": 0,
-   "horizons": {}
+   "horizons": {
+    "30": {
+     "n": 1,
+     "events": 0,
+     "model": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "persistence": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "absolute_error_sum": 0.018961484370211744,
+     "brier_sum": 3.1321999275506126e-05
+    },
+    "45": {
+     "n": 1,
+     "events": 0,
+     "model": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "persistence": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "absolute_error_sum": 0.01861861194452446,
+     "brier_sum": 6.499429645808636e-05
+    },
+    "60": {
+     "n": 1,
+     "events": 0,
+     "model": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "persistence": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "absolute_error_sum": 0.019306944705964328,
+     "brier_sum": 0.00010798702684458392
+    },
+    "90": {
+     "n": 1,
+     "events": 0,
+     "model": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "persistence": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "absolute_error_sum": 0.015489616158861326,
+     "brier_sum": 0.001004997943297
+    }
+   }
   }
  }
 }

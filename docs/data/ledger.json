@@ -1,12 +1,12 @@
 {
- "written_at": "2026-09-14 13:23:17",
+ "written_at": "2026-09-14 18:46:59",
  "what_this_is": "Every row here was written before its outcome existed, except the rows marked backfilled, which were replayed through the hours the real time feed still held. The forecast, the alarm decision, and the persistence baseline are recorded together at the moment of issue, and the observed value is attached afterwards from the ground magnetometer. Rows older than two days move into verification.json, which is a daily record that is never rewritten.",
  "scoreboard": {
   "threshold": 0.1,
-  "forecasts_issued_live": 76,
+  "forecasts_issued_live": 77,
   "forecasts_backfilled": 128,
-  "forecasts_issued": 204,
-  "horizon_forecasts_verified": 641,
+  "forecasts_issued": 205,
+  "horizon_forecasts_verified": 645,
   "awaiting_outcome": 1,
   "first_day": "2026-09-03",
   "last_day": "2026-09-14",
@@ -14,6 +14,32 @@
   "quiet": true,
   "horizons": {
    "30": {
+    "n": 163,
+    "events": 0,
+    "model": {
+     "hits": 0,
+     "false_alarms": 0,
+     "misses": 0,
+     "correct_negatives": 163,
+     "n": 163,
+     "pod": null,
+     "far": null,
+     "hss": null
+    },
+    "persistence": {
+     "hits": 0,
+     "false_alarms": 0,
+     "misses": 0,
+     "correct_negatives": 163,
+     "n": 163,
+     "pod": null,
+     "far": null,
+     "hss": null
+    },
+    "mean_absolute_error": 0.009622416250359069,
+    "brier": 4.359747730535074e-05
+   },
+   "45": {
     "n": 162,
     "events": 0,
     "model": {
@@ -36,10 +62,10 @@
      "far": null,
      "hss": null
     },
-    "mean_absolute_error": 0.009676810915370704,
-    "brier": 4.386659398807252e-05
+    "mean_absolute_error": 0.009841686434688659,
+    "brier": 4.468946142695561e-05
    },
-   "45": {
+   "60": {
     "n": 161,
     "events": 0,
     "model": {
@@ -62,44 +88,18 @@
      "far": null,
      "hss": null
     },
-    "mean_absolute_error": 0.00985542552891006,
-    "brier": 4.4967033196281287e-05
-   },
-   "60": {
-    "n": 160,
-    "events": 0,
-    "model": {
-     "hits": 0,
-     "false_alarms": 0,
-     "misses": 0,
-     "correct_negatives": 160,
-     "n": 160,
-     "pod": null,
-     "far": null,
-     "hss": null
-    },
-    "persistence": {
-     "hits": 0,
-     "false_alarms": 0,
-     "misses": 0,
-     "correct_negatives": 160,
-     "n": 160,
-     "pod": null,
-     "far": null,
-     "hss": null
-    },
-    "mean_absolute_error": 0.009994200005172264,
-    "brier": 5.0878594493336235e-05
+    "mean_absolute_error": 0.00998111751195748,
+    "brier": 5.056258109243495e-05
    },
    "90": {
-    "n": 158,
+    "n": 159,
     "events": 0,
     "model": {
      "hits": 0,
      "false_alarms": 0,
      "misses": 0,
-     "correct_negatives": 158,
-     "n": 158,
+     "correct_negatives": 159,
+     "n": 159,
      "pod": null,
      "far": null,
      "hss": null
@@ -108,42 +108,42 @@
      "hits": 0,
      "false_alarms": 0,
      "misses": 0,
-     "correct_negatives": 158,
-     "n": 158,
+     "correct_negatives": 159,
+     "n": 159,
      "pod": null,
      "far": null,
      "hss": null
     },
-    "mean_absolute_error": 0.010725445818445298,
-    "brier": 0.00012161488471975059
+    "mean_absolute_error": 0.010665705760703872,
+    "brier": 0.00012086070904659297
    }
   }
  },
  "latest": {
-  "run_at": "2026-09-14 13:23:15",
-  "issued_at": "2026-09-14 13:15:00",
+  "run_at": "2026-09-14 18:46:57",
+  "issued_at": "2026-09-14 18:40:00",
   "sources": [
    "SOLAR1"
   ],
   "observatory": "HYB",
-  "ground_observed_at": "2026-09-14 13:17:00",
-  "persistence_dbdt": 0.014048527008591098,
+  "ground_observed_at": "2026-09-14 18:35:00",
+  "persistence_dbdt": 0.040904784425405454,
   "horizons": {
    "30": {
-    "valid_at": "2026-09-14 13:45:00",
+    "valid_at": "2026-09-14 19:10:00",
     "quantiles": [
-     0.006472356829302829,
-     0.006807134809522167,
-     0.009946736919979458,
-     0.013973378923498574,
-     0.019169771676421095,
-     0.029631119582657295
+     0.007474871176060802,
+     0.007881157428499225,
+     0.011691375695452548,
+     0.016555229397161884,
+     0.02310295358677537,
+     0.03677791572190613
     ],
-    "median": 0.013973378923498574,
+    "median": 0.016555229397161884,
     "probability": {
-     "0.1": 2.3972993611621847e-05,
-     "0.3": 1.193664863088485e-13,
-     "1.0": 1.0397834524845098e-42
+     "0.1": 0.0001964263596794524,
+     "0.3": 8.740295951855698e-11,
+     "1.0": 5.136513506914372e-33
     },
     "probability_cut": 0.19999999999999998,
     "alarm": false,
@@ -151,20 +151,20 @@
     "verified_at": null
    },
    "45": {
-    "valid_at": "2026-09-14 14:00:00",
+    "valid_at": "2026-09-14 19:25:00",
     "quantiles": [
-     0.006772211638090345,
-     0.0071127877104428545,
-     0.010306765267833681,
-     0.014209524499504423,
-     0.01933513310314024,
-     0.029546373381859867
+     0.007778881995110317,
+     0.008195022659513471,
+     0.01209765719763706,
+     0.016784869605870997,
+     0.02302661476316354,
+     0.03591634061328202
     ],
-    "median": 0.014209524499504423,
+    "median": 0.016784869605870997,
     "probability": {
-     "0.1": 2.0163469978361793e-05,
-     "0.3": 6.285805410664056e-14,
-     "1.0": 1.0632753378282144e-43
+     "0.1": 0.00013862914433502386,
+     "0.3": 2.53069507724929e-11,
+     "1.0": 6.577915527836697e-35
     },
     "probability_cut": 0.19999999999999998,
     "alarm": false,
@@ -172,20 +172,20 @@
     "verified_at": null
    },
    "60": {
-    "valid_at": "2026-09-14 14:15:00",
+    "valid_at": "2026-09-14 19:40:00",
     "quantiles": [
-     0.006311663919566637,
-     0.00666652912008429,
-     0.009994512435304484,
-     0.013951298166955466,
-     0.01928651140791801,
-     0.029550727783899517
+     0.007309638355042999,
+     0.007723440928304387,
+     0.011604148469083881,
+     0.016302594925980216,
+     0.02260557160179772,
+     0.03459894945342653
     ],
-    "median": 0.013951298166955466,
+    "median": 0.016302594925980216,
     "probability": {
-     "0.1": 2.0903306650825686e-05,
-     "0.3": 7.20963410010584e-14,
-     "1.0": 1.7372288692942732e-43
+     "0.1": 8.566040832385833e-05,
+     "0.3": 4.903906456993364e-12,
+     "1.0": 2.201452438467465e-37
     },
     "probability_cut": 0.19999999999999998,
     "alarm": false,
@@ -193,20 +193,20 @@
     "verified_at": null
    },
    "90": {
-    "valid_at": "2026-09-14 14:45:00",
+    "valid_at": "2026-09-14 20:10:00",
     "quantiles": [
-     0.006502404309280325,
-     0.006876872382822699,
-     0.010388694615641703,
-     0.014690108177700311,
-     0.02105364984973776,
-     0.042218108011107966
+     0.007328909956200514,
+     0.007760543575114672,
+     0.011808473549479597,
+     0.016750342782001604,
+     0.023763329173218255,
+     0.046560504645932366
     ],
-    "median": 0.014690108177700311,
+    "median": 0.016750342782001604,
     "probability": {
-     "0.1": 0.0013042057689228313,
-     "0.3": 1.0264741166757343e-07,
-     "1.0": 4.4397100025538705e-22
+     "0.1": 0.0019186165145176509,
+     "0.3": 2.9710876048890746e-07,
+     "1.0": 1.3729696420651733e-20
     },
     "probability_cut": 0.18,
     "alarm": false,
@@ -216,9 +216,9 @@
   },
   "consequence": {
    "worst_site": "MRNI",
-   "peak_amp": 0.08552416627065233,
-   "reactive_mvar": 3.4332944641489895,
-   "worst_voltage_pu": -0.00010469785813762428,
+   "peak_amp": 0.10846705811285114,
+   "reactive_mvar": 4.35431722284053,
+   "worst_voltage_pu": -0.00013278432468977658,
    "load_at_risk_mw": 0.0
   },
   "plan": {
@@ -235,244 +235,6 @@
   }
  },
  "entries": [
-  {
-   "run_at": "2026-09-12 12:37:46",
-   "issued_at": "2026-09-12 12:30:00",
-   "sources": [
-    "SOLAR1"
-   ],
-   "observatory": "HYB",
-   "ground_observed_at": "2026-09-12 12:29:00",
-   "persistence_dbdt": 0.004737556801184022,
-   "horizons": {
-    "30": {
-     "valid_at": "2026-09-12 13:00:00",
-     "quantiles": [
-      0.010169227109119472,
-      0.01080262395410353,
-      0.01674272213489204,
-      0.025419145625564913,
-      0.0379950908721745,
-      0.06526711535716753
-     ],
-     "median": 0.025419145625564913,
-     "probability": {
-      "0.1": 0.005596606049697095,
-      "0.3": 3.6560865269582713e-06,
-      "1.0": 2.6051786650917433e-17
-     },
-     "probability_cut": 0.19999999999999998,
-     "alarm": false,
-     "observed_dbdt": 0.006457661255353171,
-     "verified_at": "2026-09-13 00:06:24",
-     "verified_against": "HYB"
-    },
-    "45": {
-     "valid_at": "2026-09-12 13:15:00",
-     "quantiles": [
-      0.010312709441755394,
-      0.010983812717799009,
-      0.017277527915019818,
-      0.02625260027159048,
-      0.03955711536825459,
-      0.07122610750801309
-     ],
-     "median": 0.02625260027159048,
-     "probability": {
-      "0.1": 0.008061904021885051,
-      "0.3": 1.4578959178985263e-05,
-      "1.0": 3.666381538642879e-15
-     },
-     "probability_cut": 0.19999999999999998,
-     "alarm": false,
-     "observed_dbdt": 0.00763398832706602,
-     "verified_at": "2026-09-13 00:06:24",
-     "verified_against": "HYB"
-    },
-    "60": {
-     "valid_at": "2026-09-12 13:30:00",
-     "quantiles": [
-      0.01005519713334835,
-      0.010746675601451695,
-      0.017231472649246404,
-      0.02694093303303035,
-      0.04180647230772829,
-      0.07697453168001436
-     ],
-     "median": 0.02694093303303035,
-     "probability": {
-      "0.1": 0.010391680655437018,
-      "0.3": 3.522592291447417e-05,
-      "1.0": 7.988779597038349e-14
-     },
-     "probability_cut": 0.19999999999999998,
-     "alarm": false,
-     "observed_dbdt": 0.00763398832706602,
-     "verified_at": "2026-09-13 00:06:24",
-     "verified_against": "HYB"
-    },
-    "90": {
-     "valid_at": "2026-09-12 14:00:00",
-     "quantiles": [
-      0.009711015735156004,
-      0.010473274585133358,
-      0.01762186151589772,
-      0.028172171982598946,
-      0.045974826652918056,
-      0.10925625573482739
-     ],
-     "median": 0.028172171982598946,
-     "probability": {
-      "0.1": 0.03170170252994309,
-      "0.3": 0.0009816884044955823,
-      "1.0": 1.541486245953454e-08
-     },
-     "probability_cut": 0.18,
-     "alarm": false,
-     "observed_dbdt": 0.01268255582373762,
-     "verified_at": "2026-09-13 00:06:24",
-     "verified_against": "HYB"
-    }
-   },
-   "consequence": {
-    "worst_site": "MRNI",
-    "peak_amp": 0.20256193459552344,
-    "reactive_mvar": 8.131675513716946,
-    "worst_voltage_pu": -0.0002479743634711387,
-    "load_at_risk_mw": 0.0
-   },
-   "plan": {
-    "actions": [],
-    "action_cost_lakh": 0.0,
-    "baseline_expected_lakh": 0.0,
-    "baseline_tail_lakh": 0.0,
-    "planned_expected_lakh": 0.0,
-    "planned_tail_lakh": 0.0,
-    "tail_risk_avoided_lakh": 0.0,
-    "baseline_load_at_risk_mw": 0.0,
-    "planned_load_at_risk_mw": 0.0,
-    "benefit_to_cost": null
-   }
-  },
-  {
-   "run_at": "2026-09-12 15:50:03",
-   "issued_at": "2026-09-12 15:45:00",
-   "sources": [
-    "SOLAR1"
-   ],
-   "observatory": null,
-   "ground_observed_at": null,
-   "persistence_dbdt": null,
-   "horizons": {
-    "30": {
-     "valid_at": "2026-09-12 16:15:00",
-     "quantiles": [
-      0.005276320384901426,
-      0.005543574944271499,
-      0.008049931479662145,
-      0.01113364384903292,
-      0.015026360379328797,
-      0.02239270027163285
-     ],
-     "median": 0.01113364384903292,
-     "probability": {
-      "0.1": 5.31576931885672e-07,
-      "0.3": 8.594936392145092e-19,
-      "1.0": 4.619665812490285e-60
-     },
-     "probability_cut": 0.19999999999999998,
-     "alarm": false,
-     "observed_dbdt": 0.0038774633747105844,
-     "verified_at": "2026-09-13 00:06:24",
-     "verified_against": "HYB"
-    },
-    "45": {
-     "valid_at": "2026-09-12 16:30:00",
-     "quantiles": [
-      0.005466550843029019,
-      0.005739484851135496,
-      0.008299104176472373,
-      0.011307949531220086,
-      0.015117008052733609,
-      0.02266165341908905
-     ],
-     "median": 0.011307949531220086,
-     "probability": {
-      "0.1": 7.066130077048771e-07,
-      "0.3": 2.1703361367747696e-18,
-      "1.0": 1.1021375766177172e-58
-     },
-     "probability_cut": 0.19999999999999998,
-     "alarm": false,
-     "observed_dbdt": 0.0038774633747105844,
-     "verified_at": "2026-09-13 00:06:24",
-     "verified_against": "HYB"
-    },
-    "60": {
-     "valid_at": "2026-09-12 16:45:00",
-     "quantiles": [
-      0.0052366041733746425,
-      0.005527758383287261,
-      0.00825824971163354,
-      0.011446600815339427,
-      0.015747425765199198,
-      0.024433008444769495
-     ],
-     "median": 0.011446600815339427,
-     "probability": {
-      "0.1": 3.3307871973399922e-06,
-      "0.3": 3.3280778381847656e-16,
-      "1.0": 3.318612424868706e-51
-     },
-     "probability_cut": 0.19999999999999998,
-     "alarm": false,
-     "observed_dbdt": 0.002770128356432254,
-     "verified_at": "2026-09-13 00:06:24",
-     "verified_against": "HYB"
-    },
-    "90": {
-     "valid_at": "2026-09-12 17:15:00",
-     "quantiles": [
-      0.005393926412159037,
-      0.005706385198008136,
-      0.008636674289423387,
-      0.012110580181179144,
-      0.017270244120361204,
-      0.03616163923251808
-     ],
-     "median": 0.012110580181179144,
-     "probability": {
-      "0.1": 0.0006814739281700782,
-      "0.3": 1.7204701077150674e-08,
-      "1.0": 1.3910403661623577e-24
-     },
-     "probability_cut": 0.18,
-     "alarm": false,
-     "observed_dbdt": 0.010526751635713812,
-     "verified_at": "2026-09-13 00:06:24",
-     "verified_against": "HYB"
-    }
-   },
-   "consequence": {
-    "worst_site": "MRNI",
-    "peak_amp": 0.0628230054066835,
-    "reactive_mvar": 2.5219757887073686,
-    "worst_voltage_pu": -7.690731631376572e-05,
-    "load_at_risk_mw": 0.0
-   },
-   "plan": {
-    "actions": [],
-    "action_cost_lakh": 0.0,
-    "baseline_expected_lakh": 0.0,
-    "baseline_tail_lakh": 0.0,
-    "planned_expected_lakh": 0.0,
-    "planned_tail_lakh": 0.0,
-    "tail_risk_avoided_lakh": 0.0,
-    "baseline_load_at_risk_mw": 0.0,
-    "planned_load_at_risk_mw": 0.0,
-    "benefit_to_cost": null
-   }
-  },
   {
    "run_at": "2026-09-12 17:59:59",
    "issued_at": "2026-09-12 17:50:00",
@@ -2048,8 +1810,9 @@
      },
      "probability_cut": 0.19999999999999998,
      "alarm": false,
-     "observed_dbdt": null,
-     "verified_at": null
+     "observed_dbdt": 0.014783859441972608,
+     "verified_at": "2026-09-14 18:46:59",
+     "verified_against": "HYB"
     },
     "45": {
      "valid_at": "2026-09-14 14:00:00",
@@ -2069,8 +1832,9 @@
      },
      "probability_cut": 0.19999999999999998,
      "alarm": false,
-     "observed_dbdt": null,
-     "verified_at": null
+     "observed_dbdt": 0.02183921676454745,
+     "verified_at": "2026-09-14 18:46:59",
+     "verified_against": "HYB"
     },
     "60": {
      "valid_at": "2026-09-14 14:15:00",
@@ -2090,8 +1854,9 @@
      },
      "probability_cut": 0.19999999999999998,
      "alarm": false,
-     "observed_dbdt": null,
-     "verified_at": null
+     "observed_dbdt": 0.02183921676454745,
+     "verified_at": "2026-09-14 18:46:59",
+     "verified_against": "HYB"
     },
     "90": {
      "valid_at": "2026-09-14 14:45:00",
@@ -2111,8 +1876,9 @@
      },
      "probability_cut": 0.18,
      "alarm": false,
-     "observed_dbdt": null,
-     "verified_at": null
+     "observed_dbdt": 0.015916884815258964,
+     "verified_at": "2026-09-14 18:46:59",
+     "verified_against": "HYB"
     }
    },
    "consequence": {
@@ -2120,6 +1886,121 @@
     "peak_amp": 0.08552416627065233,
     "reactive_mvar": 3.4332944641489895,
     "worst_voltage_pu": -0.00010469785813762428,
+    "load_at_risk_mw": 0.0
+   },
+   "plan": {
+    "actions": [],
+    "action_cost_lakh": 0.0,
+    "baseline_expected_lakh": 0.0,
+    "baseline_tail_lakh": 0.0,
+    "planned_expected_lakh": 0.0,
+    "planned_tail_lakh": 0.0,
+    "tail_risk_avoided_lakh": 0.0,
+    "baseline_load_at_risk_mw": 0.0,
+    "planned_load_at_risk_mw": 0.0,
+    "benefit_to_cost": null
+   }
+  },
+  {
+   "run_at": "2026-09-14 18:46:57",
+   "issued_at": "2026-09-14 18:40:00",
+   "sources": [
+    "SOLAR1"
+   ],
+   "observatory": "HYB",
+   "ground_observed_at": "2026-09-14 18:35:00",
+   "persistence_dbdt": 0.040904784425405454,
+   "horizons": {
+    "30": {
+     "valid_at": "2026-09-14 19:10:00",
+     "quantiles": [
+      0.007474871176060802,
+      0.007881157428499225,
+      0.011691375695452548,
+      0.016555229397161884,
+      0.02310295358677537,
+      0.03677791572190613
+     ],
+     "median": 0.016555229397161884,
+     "probability": {
+      "0.1": 0.0001964263596794524,
+      "0.3": 8.740295951855698e-11,
+      "1.0": 5.136513506914372e-33
+     },
+     "probability_cut": 0.19999999999999998,
+     "alarm": false,
+     "observed_dbdt": null,
+     "verified_at": null
+    },
+    "45": {
+     "valid_at": "2026-09-14 19:25:00",
+     "quantiles": [
+      0.007778881995110317,
+      0.008195022659513471,
+      0.01209765719763706,
+      0.016784869605870997,
+      0.02302661476316354,
+      0.03591634061328202
+     ],
+     "median": 0.016784869605870997,
+     "probability": {
+      "0.1": 0.00013862914433502386,
+      "0.3": 2.53069507724929e-11,
+      "1.0": 6.577915527836697e-35
+     },
+     "probability_cut": 0.19999999999999998,
+     "alarm": false,
+     "observed_dbdt": null,
+     "verified_at": null
+    },
+    "60": {
+     "valid_at": "2026-09-14 19:40:00",
+     "quantiles": [
+      0.007309638355042999,
+      0.007723440928304387,
+      0.011604148469083881,
+      0.016302594925980216,
+      0.02260557160179772,
+      0.03459894945342653
+     ],
+     "median": 0.016302594925980216,
+     "probability": {
+      "0.1": 8.566040832385833e-05,
+      "0.3": 4.903906456993364e-12,
+      "1.0": 2.201452438467465e-37
+     },
+     "probability_cut": 0.19999999999999998,
+     "alarm": false,
+     "observed_dbdt": null,
+     "verified_at": null
+    },
+    "90": {
+     "valid_at": "2026-09-14 20:10:00",
+     "quantiles": [
+      0.007328909956200514,
+      0.007760543575114672,
+      0.011808473549479597,
+      0.016750342782001604,
+      0.023763329173218255,
+      0.046560504645932366
+     ],
+     "median": 0.016750342782001604,
+     "probability": {
+      "0.1": 0.0019186165145176509,
+      "0.3": 2.9710876048890746e-07,
+      "1.0": 1.3729696420651733e-20
+     },
+     "probability_cut": 0.18,
+     "alarm": false,
+     "observed_dbdt": null,
+     "verified_at": null
+    }
+   },
+   "consequence": {
+    "worst_site": "MRNI",
+    "peak_amp": 0.10846705811285114,
+    "reactive_mvar": 4.35431722284053,
+    "worst_voltage_pu": -0.00013278432468977658,
     "load_at_risk_mw": 0.0
    },
    "plan": {
