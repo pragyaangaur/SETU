@@ -859,6 +859,84 @@
      "brier_sum": 1.4888024355198606e-06
     }
    }
+  },
+  "2026-09-14": {
+   "live": 1,
+   "backfilled": 0,
+   "horizons": {
+    "30": {
+     "n": 1,
+     "events": 0,
+     "model": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "persistence": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "absolute_error_sum": 0.0041470531431490095,
+     "brier_sum": 4.909677313790058e-12
+    },
+    "45": {
+     "n": 1,
+     "events": 0,
+     "model": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "persistence": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "absolute_error_sum": 0.004187137793364227,
+     "brier_sum": 1.928781485893555e-12
+    },
+    "60": {
+     "n": 1,
+     "events": 0,
+     "model": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "persistence": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "absolute_error_sum": 0.0070559992117508845,
+     "brier_sum": 2.4656383448958407e-12
+    },
+    "90": {
+     "n": 1,
+     "events": 0,
+     "model": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "persistence": {
+      "hits": 0,
+      "false_alarms": 0,
+      "misses": 0,
+      "correct_negatives": 1
+     },
+     "absolute_error_sum": 0.007976979928080323,
+     "brier_sum": 1.7456001775466202e-07
+    }
+   }
   }
  }
 }
