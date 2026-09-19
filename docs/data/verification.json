@@ -1095,80 +1095,80 @@
    }
   },
   "2026-09-17": {
-   "live": 3,
+   "live": 4,
    "backfilled": 0,
    "horizons": {
     "30": {
-     "n": 3,
+     "n": 4,
      "events": 0,
      "model": {
       "hits": 0,
       "false_alarms": 0,
       "misses": 0,
-      "correct_negatives": 3
+      "correct_negatives": 4
      },
      "persistence": {
       "hits": 0,
       "false_alarms": 0,
       "misses": 0,
-      "correct_negatives": 3
+      "correct_negatives": 4
      },
-     "absolute_error_sum": 0.028278253815761517,
-     "brier_sum": 9.15303062461171e-07
+     "absolute_error_sum": 0.03455577744426869,
+     "brier_sum": 9.153055283258994e-07
     },
     "45": {
-     "n": 3,
+     "n": 4,
      "events": 0,
      "model": {
       "hits": 0,
       "false_alarms": 0,
       "misses": 0,
-      "correct_negatives": 3
+      "correct_negatives": 4
      },
      "persistence": {
       "hits": 0,
       "false_alarms": 0,
       "misses": 0,
-      "correct_negatives": 3
+      "correct_negatives": 4
      },
-     "absolute_error_sum": 0.020019378397941205,
-     "brier_sum": 1.6530554213060246e-06
+     "absolute_error_sum": 0.02233384582287598,
+     "brier_sum": 1.653056221359125e-06
     },
     "60": {
-     "n": 3,
+     "n": 4,
      "events": 0,
      "model": {
       "hits": 0,
       "false_alarms": 0,
       "misses": 0,
-      "correct_negatives": 3
+      "correct_negatives": 4
      },
      "persistence": {
       "hits": 0,
       "false_alarms": 0,
       "misses": 0,
-      "correct_negatives": 3
+      "correct_negatives": 4
      },
-     "absolute_error_sum": 0.021901902323278544,
-     "brier_sum": 3.787868221540555e-06
+     "absolute_error_sum": 0.02433732297583504,
+     "brier_sum": 3.78786995554912e-06
     },
     "90": {
-     "n": 3,
+     "n": 4,
      "events": 0,
      "model": {
       "hits": 0,
       "false_alarms": 0,
       "misses": 0,
-      "correct_negatives": 3
+      "correct_negatives": 4
      },
      "persistence": {
       "hits": 0,
       "false_alarms": 0,
       "misses": 0,
-      "correct_negatives": 3
+      "correct_negatives": 4
      },
-     "absolute_error_sum": 0.0335042479664734,
-     "brier_sum": 0.00010855418043615588
+     "absolute_error_sum": 0.034491362257001196,
+     "brier_sum": 0.00010869607588506378
     }
    }
   }
