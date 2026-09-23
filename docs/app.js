@@ -280,10 +280,10 @@
   /* ---------- the standing record ----------
    *
    * This is the only part of the console that is not a replay of a storm that has
-   * already been studied. The service writes a forecast into the ledger every few
-   * hours, before its outcome exists, and attaches what the ground actually did
-   * once the valid minute has passed. It is scheduled every quarter of an hour, and
-   * GitHub starts free scheduled jobs late, which is why the real gap is longer.
+   * already been studied. The service wrote a forecast into the ledger every few
+   * hours, before its outcome existed, and attached what the ground actually did
+   * once the valid minute had passed. It ran from 4 September until it was stopped
+   * on 20 September 2026, so the ledger it reads here no longer changes.
    *
    * The file is fetched rather than read from the bundle, because the service
    * commits it on its own schedule and the bundle is only rebuilt by hand. When

@@ -1,5 +1,9 @@
 # The standing forecast service.
 #
+# Disabled on GitHub on 20 September 2026, when the service was stopped. The
+# last run issued a forecast at 00:52 UTC that day. Re-enable it from the
+# Actions tab to continue the same record.
+#
 # Each run issues a forecast from the solar wind as it stands
 # at that minute, writes it into the ledger before the outcome exists, and scores
 # every earlier forecast whose valid time has now passed against what the ground

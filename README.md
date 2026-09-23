@@ -104,15 +104,17 @@ This prints the current solar wind, how long it will take to arrive, the probabi
 
 Every other result in this repository comes from a storm that had already happened. That is the right way to develop a model and it is not the same as proving one, because the storms were chosen after the fact and the model was tuned while they were on the table. Holding three of them out is real discipline and it still leaves that objection standing.
 
-So the system also runs as a service.
+So the system also ran as a service, from 4 September to 20 September 2026.
 
 ```bash
 python -m setu.cli nowcast
 ```
 
-A scheduled job runs that command. The job is scheduled every quarter of an hour, but GitHub starts free scheduled jobs late when its runners are busy, so in practice it runs every three to four hours. Each run issues a forecast for all four horizons from the solar wind as it stands at that minute and writes it into [docs/data/ledger.json](docs/data/ledger.json) before anything about the outcome is known. About an hour later, once the valid minute has passed, it fetches what the Indian magnetometer actually recorded at that minute and writes the answer beside the forecast. The persistence baseline is recorded in the same row at the same moment and from the same information, so the comparison between the two cannot drift.
+A scheduled job ran that command. The job was scheduled every quarter of an hour, but GitHub starts free scheduled jobs late when its runners are busy, so in practice it ran every three to four hours. Each run issued a forecast for all four horizons from the solar wind as it stands at that minute and wrote it into [docs/data/ledger.json](docs/data/ledger.json) before anything about the outcome was known. About an hour later, once the valid minute had passed, it fetched what the Indian magnetometer actually recorded at that minute and wrote the answer beside the forecast. The persistence baseline is recorded in the same row at the same moment and from the same information, so the comparison between the two cannot drift.
 
-Nobody starts it. The job is in [.github/workflows/nowcast.yml](.github/workflows/nowcast.yml) and it commits its own results, so the operator console shows a record that grows on its own. That is also why most of the commits in this repository are made by `setu-nowcast` and say `nowcast:` in front of them. Filter them out with `git log --perl-regexp --author='^(?!setu-nowcast)'` to see the engineering history on its own.
+Nobody started it by hand. The job is in [.github/workflows/nowcast.yml](.github/workflows/nowcast.yml) and it committed its own results, so the record in the operator console grew on its own while the job was enabled. That is also why most of the commits in this repository are made by `setu-nowcast` and say `nowcast:` in front of them. Filter them out with `git log --perl-regexp --author='^(?!setu-nowcast)'` to see the engineering history on its own.
+
+**The service was stopped on 20 September 2026.** The workflow was disabled on GitHub that day, and its last run issued a forecast at 00:52 UTC. The ledger, the daily record and the console are frozen at that run and do not update any more. Forecasts from the last runs whose valid minute came after the job stopped were never scored, and they stay in the ledger without an outcome. The command still works, so `python -m setu.cli nowcast` run by hand, or the workflow re-enabled from the Actions tab, continues the same record. A restart leaves a visible gap from 20 September to the day it resumes.
 
 Two properties are what make the record worth anything.
 
@@ -122,7 +124,7 @@ Rows older than two days move into [docs/data/verification.json](docs/data/verif
 
 Whether the record shows skill depends on whether the Sun does anything. Through a quiet stretch there is no detection skill to report and the useful number is the false alarm count, because an alarm system that cries wolf through a quiet week is switched off before the storm arrives.
 
-On 12 September 2026 at 08:57 UTC the record held 61 live forecasts issued since 4 September, scored in 188 checks against the Indian magnetometer, with no false alarms. The ground never reached the 0.1 nT per second alert level in that time, so there is no detection skill to report yet.
+The final record, counted from the repository history by [presentation/live_record.py](presentation/live_record.py), holds 114 live forecasts issued between 4 September and 20 September 2026, scored in 420 checks against the Indian magnetometer, with no false alarms. A further 128 backfilled rows are counted apart. The largest rate of change the ground recorded in that time was 0.048 nT per second, under half the 0.1 nT per second alert level, so the Sun stayed quiet for the whole run and the record has no detection skill to report. For comparison, on 12 September at 08:57 UTC the record held 61 live forecasts and 188 checks.
 
 Until 12 September the workflow committed only the ledger. The daily record was written on each run and thrown away with the runner, so the closed days were kept only in the history of the ledger. The workflow now commits both files, and [scripts/rebuild_rollup.py](scripts/rebuild_rollup.py) recovered the closed days from that history through the same fold the service uses.
 
@@ -177,7 +179,7 @@ There is no real time Aditya-L1 solar wind product. The Aditya-L1 Support Cell c
 
 ## Status
 
-Development is paused at this stage, as of 12 September 2026. The model, the physics, the grid solver and the decision layer are final as described above, and the numbers in [RESULTS.md](RESULTS.md) are the ones the committed weights produce. The nowcast service keeps running on its own, so the standing record will keep growing and will show the first storm that reaches it, whether the forecast goes well or badly.
+Development is paused at this stage, as of 12 September 2026. The model, the physics, the grid solver and the decision layer are final as described above, and the numbers in [RESULTS.md](RESULTS.md) are the ones the committed weights produce. The nowcast service ran from 4 September until it was stopped on 20 September 2026, and the standing record is frozen at that point. It holds 114 live forecasts and no false alarms, and it saw no storm.
 
 The next steps are the four requests listed above. The largest is the Shillong magnetometer record, which would let the model be trained at the latitude where it is used. After that comes an ingestion path for a low latency Aditya-L1 feed once one exists, and a check of the network model by somebody who holds the real parameters.
 
