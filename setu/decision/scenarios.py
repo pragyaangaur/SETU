@@ -123,7 +123,7 @@ def build_scenarios(quantile_values, quantile_levels, n_samples=160,
     scenarios = []
     weight = 1.0 / n_samples
     cache = {}
-    for peak, bearing in zip(peaks, directions):
+    for peak, bearing in zip(peaks, directions, strict=True):
         # The induction response is linear in amplitude, so the expensive transform
         # is computed once per direction and then simply scaled.
         key = round(float(bearing), 1)

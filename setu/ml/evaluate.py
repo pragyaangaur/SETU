@@ -132,7 +132,7 @@ def coverage(pred_quantiles, target, quantiles) -> dict:
     """
     t = np.asarray(target)[:, :, None]
     below = (t <= np.asarray(pred_quantiles)).mean(axis=(0, 1))
-    return {float(q): float(c) for q, c in zip(quantiles, below)}
+    return {float(q): float(c) for q, c in zip(quantiles, below, strict=True)}
 
 
 def persistence_scores(current_dbdt, observed_future, threshold) -> dict:

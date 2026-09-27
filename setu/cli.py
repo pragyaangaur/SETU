@@ -62,7 +62,7 @@ def load_model():
     one run with a scaler from another produces plausible looking nonsense, so the
     pair is chosen together and the feature count is checked.
     """
-    for model_path, scaler_path in zip(MODEL_CANDIDATES, SCALER_CANDIDATES):
+    for model_path, scaler_path in zip(MODEL_CANDIDATES, SCALER_CANDIDATES, strict=True):
         if model_path.exists() and scaler_path.exists():
             model = GICNet.load(model_path)
             scaler = Standardiser.from_state(np.load(scaler_path, allow_pickle=False))
@@ -370,7 +370,7 @@ def cmd_benchmark(args):
         "benchmark_1v_per_km": {
             direction: {code: float(v) for code, v in
                         zip(solver.codes,
-                            uniform_field_case(solver, ex, ey).neutral_current)}
+                            uniform_field_case(solver, ex, ey).neutral_current, strict=True)}
             for direction, ex, ey in (("north", 1.0, 0.0), ("east", 0.0, 1.0))
         },
         "substations": [

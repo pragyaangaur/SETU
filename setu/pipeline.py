@@ -21,7 +21,7 @@ from setu.decision.policy import PolicyOptimiser
 from setu.decision.scenarios import build_scenarios
 from setu.grid.network import Network
 from setu.grid.voltage import VoltageModel
-from setu.ml.dataset import INPUT_CADENCE_MIN, event_frames, windowed_samples
+from setu.ml.dataset import event_frames, windowed_samples
 from setu.ml.features import Standardiser
 from setu.ml.model import GICNet, from_log_target
 from setu.physics.gic import GICSolver
@@ -107,7 +107,7 @@ def replay(event_key: str, model: GICNet, scaler: Standardiser,
             "reserve_exhausted": assessment["reserve_exhausted"],
             "load_at_risk_mw": voltage.load_at_risk_mw(result.reactive_loss_mvar),
             "per_site_amp": {c: float(v) for c, v in
-                             zip(result.codes, result.per_phase_per_unit)},
+                             zip(result.codes, result.per_phase_per_unit, strict=True)},
             "plan": None,
         }
         if probability[str(DBDT_THRESHOLDS_NT_PER_S[0])] >= plan_threshold:

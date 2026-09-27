@@ -100,7 +100,7 @@ class GICSolver:
         self.branch_conductance = np.array(self.branch_conductance)
 
         y = np.zeros((n, n))
-        for g, (i, j) in zip(self.branch_conductance, self.branch_nodes):
+        for g, (i, j) in zip(self.branch_conductance, self.branch_nodes, strict=True):
             y[i, i] += g
             y[j, j] += g
             y[i, j] -= g
@@ -136,7 +136,7 @@ class GICSolver:
         """
         j = np.zeros(self.net.n)
         for ln, g, (i, k) in zip(self.net.lines, self.branch_conductance,
-                                 self.branch_nodes):
+                                 self.branch_nodes, strict=True):
             model_a = self.net.substations[i].earth_model
             model_b = self.net.substations[k].earth_model
             ex = 0.5 * (ex_by_model[model_a] + ex_by_model[model_b])
