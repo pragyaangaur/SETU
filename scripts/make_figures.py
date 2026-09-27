@@ -21,7 +21,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from setu.config import ARTIFACT_DIR, QUANTILES  # noqa: E402
+from setu.config import ARTIFACT_DIR  # noqa: E402
 from setu.data.magnetometer import fetch_observatory, to_disturbance  # noqa: E402
 from setu.data.omni import fetch_range, fill_gaps, to_l1_time_base  # noqa: E402
 from setu.data.storms import get_event  # noqa: E402

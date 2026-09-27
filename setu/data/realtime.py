@@ -28,7 +28,6 @@ These are public and carry no access restriction.
 
 import logging
 
-import numpy as np
 import pandas as pd
 import requests
 

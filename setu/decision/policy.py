@@ -21,7 +21,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from setu.decision.actions import Action, default_actions
+from setu.decision.actions import default_actions
 from setu.grid.network import Network
 from setu.grid.voltage import DEFAULT_RESERVE_MVAR, FALLBACK_RESERVE_MVAR, VoltageModel
 from setu.physics.gic import GICSolver

@@ -5,7 +5,6 @@ model its ability to warn about a storm onset, and it is invisible in any loss
 curve. These tests make it visible instead.
 """
 
-import datetime as dt
 
 import numpy as np
 import pandas as pd

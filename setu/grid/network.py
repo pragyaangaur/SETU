@@ -15,7 +15,7 @@ Every substation is tagged with the layered Earth profile it stands on, which is
 what lets the model show the conductivity contrast across the region.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from math import cos, radians
 
 import numpy as np

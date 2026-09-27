@@ -12,7 +12,7 @@ rather than to reproduce any single survey. Sources are named in each docstring 
 that a reader can check the assumption.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 

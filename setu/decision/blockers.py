@@ -24,7 +24,6 @@ from itertools import combinations
 import numpy as np
 
 from setu.grid.network import Network
-from setu.grid.voltage import VoltageModel
 from setu.physics.gic import GICSolver
 
 

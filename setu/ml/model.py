@@ -29,8 +29,8 @@ import numpy as np
 
 from setu.config import FORECAST_HORIZONS_MIN, QUANTILES
 from setu.ml.features import FEATURE_NAMES
-from setu.ml.nn import (Adam, CausalConv1d, ChannelNorm, Dense, Dropout, ReLU,
-                        ResidualBlock, pinball_loss)
+from setu.ml.nn import (CausalConv1d, ChannelNorm, Dense, Dropout, ReLU,
+                        ResidualBlock)
 
 # The target is stored as the natural logarithm of the rate of change plus a floor.
 # The floor keeps quiet minutes finite and it also sets how much of the quiet end

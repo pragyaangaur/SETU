@@ -37,7 +37,7 @@ import pandas as pd
 from setu.config import (CADENCE_S, DBDT_THRESHOLDS_NT_PER_S, DOCS_DATA_DIR,
                          FORECAST_HORIZONS_MIN, QUANTILES)
 from setu.data.magnetometer import first_reporting
-from setu.data.realtime import current_conditions, fetch_live
+from setu.data.realtime import fetch_live
 from setu.decision.policy import PolicyOptimiser
 from setu.decision.scenarios import build_scenarios
 from setu.grid.network import Network
