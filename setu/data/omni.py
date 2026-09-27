@@ -27,6 +27,7 @@ OMNIWeb high resolution OMNI dataset. Please cite the archive if you use this.
 """
 
 import datetime as dt
+import gzip
 import io
 import logging
 
@@ -73,39 +74,51 @@ def _month_url(year: int, month: int) -> str:
     return f"{BASE_URL}/omni_min{year}{month:02d}.asc"
 
 
-def fetch_month(year: int, month: int, timeout: int = 60,
-                use_cache: bool = True) -> pd.DataFrame:
-    """Download and parse one month of one minute OMNI data.
+def _parse_month(text: str) -> pd.DataFrame:
+    """Turn the text of one monthly file into a frame indexed by minute."""
+    raw = pd.read_csv(io.StringIO(text), sep=r"\s+", header=None,
+                      dtype=np.float64).to_numpy()
+    if raw.size == 0:
+        raw = np.empty((0, max(col for col, _ in COLUMNS.values()) + 1))
 
-    Files are cached under ``data/raw`` so a repeated run does not hit the archive
-    again. The archive is a public service, so it is worth being polite to it.
-    """
-    cache = RAW_DIR / f"omni_min{year}{month:02d}.asc"
-    if use_cache and cache.exists():
-        text = cache.read_text()
-    else:
-        url = _month_url(year, month)
-        log.info("downloading %s", url)
-        resp = requests.get(url, timeout=timeout)
-        resp.raise_for_status()
-        text = resp.text
-        cache.write_text(text)
-
-    raw = np.loadtxt(io.StringIO(text))
-    if raw.ndim == 1:
-        raw = raw[None, :]
-
-    stamps = [
-        dt.datetime(int(r[0]), 1, 1)
-        + dt.timedelta(days=int(r[1]) - 1, hours=int(r[2]), minutes=int(r[3]))
-        for r in raw
-    ]
+    # Year, day of year, hour and minute sit in the first four columns. Building the
+    # index from them with array arithmetic avoids one datetime object per row.
+    year = raw[:, 0].astype(np.int64)
+    offset = (pd.to_timedelta(raw[:, 1].astype(np.int64) - 1, unit="D")
+              + pd.to_timedelta(raw[:, 2].astype(np.int64), unit="h")
+              + pd.to_timedelta(raw[:, 3].astype(np.int64), unit="min"))
+    stamps = pd.to_datetime(year.astype(str), format="%Y") + offset
     frame = pd.DataFrame(index=pd.DatetimeIndex(stamps, name="time"))
     for name, (col, fill) in COLUMNS.items():
         values = raw[:, col].astype(float)
         values[values >= fill] = np.nan
         frame[name] = values
     return frame
+
+
+def fetch_month(year: int, month: int, timeout: int = 60,
+                use_cache: bool = True) -> pd.DataFrame:
+    """Download and parse one month of one minute OMNI data.
+
+    Files are cached under ``data/raw`` so a repeated run does not hit the archive
+    again. The archive is a public service, so it is worth being polite to it. New
+    downloads are stored gzipped, which cuts each month from about 13 MB to about 3
+    MB. A plain ``.asc`` left over from an older run is still read.
+    """
+    name = f"omni_min{year}{month:02d}.asc"
+    packed, plain = RAW_DIR / (name + ".gz"), RAW_DIR / name
+    if use_cache and packed.exists():
+        text = gzip.decompress(packed.read_bytes()).decode()
+    elif use_cache and plain.exists():
+        text = plain.read_text()
+    else:
+        url = _month_url(year, month)
+        log.info("downloading %s", url)
+        resp = requests.get(url, timeout=timeout)
+        resp.raise_for_status()
+        text = resp.text
+        packed.write_bytes(gzip.compress(text.encode(), compresslevel=6))
+    return _parse_month(text)
 
 
 def fetch_range(start: dt.date, end: dt.date, **kwargs) -> pd.DataFrame:
